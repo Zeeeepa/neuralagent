@@ -53,7 +53,6 @@ def get_llm(agent: str, temperature: float = 0.0, max_tokens: int = None, thinki
             return ChatAnthropic(
                 model=model_id,
                 temperature=temperature,
-                max_tokens=max_tokens,
                 timeout=None,
                 max_retries=2,
             )
@@ -61,7 +60,6 @@ def get_llm(agent: str, temperature: float = 0.0, max_tokens: int = None, thinki
             return ChatAnthropic(
                 model=model_id,
                 temperature=temperature,
-                max_tokens=max_tokens,
                 timeout=None,
                 max_retries=2,
                 thinking={"type": "enabled", "budget_tokens": 2000},
