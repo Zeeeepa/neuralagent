@@ -48,14 +48,20 @@ def get_suggestions(request: SuggestorRequest, db: Session = Depends(get_session
         })
 
     if request.screenshot_b64:
-        prompt_blocks.append({
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": "image/png",
-                "data": request.screenshot_b64
-            }
+        if os.getenv('SUGGESTOR_AGENT_MODEL_TYPE') == 'ollama':
+            prompt_blocks.append({
+            "type": "image_url",
+            "image_url": f"data:image/png;base64,{request.screenshot_b64}"
         })
+        else:
+            prompt_blocks.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": request.screenshot_b64
+                }
+            })
 
     llm = llm_provider.get_llm(agent='suggestor', temperature=0.6)
 

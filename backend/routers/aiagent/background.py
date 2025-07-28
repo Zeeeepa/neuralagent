@@ -69,14 +69,20 @@ def next_step(tid: str, next_step_req: BackgroundNextStepRequest, db: Session = 
             image_io = io.BytesIO(image_bytes)
             screenshot_s3_path = upload_helper.upload_screenshot_s3_bytesio(image_io, extension="png")
         
-        screenshot_user_message_block = {
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": "image/png",
-                "data": next_step_req.screenshot_b64
+        if os.getenv('COMPUTER_USE_AGENT_MODEL_TYPE') == 'ollama':
+            screenshot_user_message_block = {
+                "type": "image_url",
+                "image_url": f"data:image/png;base64,{next_step_req.screenshot_b64}"
             }
-        }
+        else:
+            screenshot_user_message_block = {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": next_step_req.screenshot_b64
+                }
+            }
 
     action_history = []
     task_previous_messages = db.exec(
