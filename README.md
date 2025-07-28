@@ -52,7 +52,7 @@ neuralagent/
 └── README.md
 ```
 ---
-.
+
 # 🔧 Prerequisites
 
 Before running **NeuralAgent**, make sure the following dependencies are installed on your machine:
