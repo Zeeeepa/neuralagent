@@ -34,7 +34,7 @@ It took care of the rest!
 
 - ✅ Desktop automation with `pyautogui`
 - ✅ Background automation (Windows Only For Now) via WSL (browser-only).
-- ✅ Supports Claude, GPT-4, Azure OpenAI, AWS Bedrock, Gemini and Ollama.
+- ✅ Supports Anthropic, OpenAI, Azure OpenAI, AWS Bedrock, Gemini and Ollama.
 - ✅ Modular agents: Planner, Classifier, Suggestor, Title, and more
 - ✅ Multimodal (text + vision)
 - ✅ FastAPI backend + Electron + React frontend
