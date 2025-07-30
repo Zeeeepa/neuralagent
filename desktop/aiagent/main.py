@@ -309,8 +309,8 @@ def get_next_step():
     running_apps = ui_extraction.get_running_apps()
 
     # Automatically trigger screenshot if WebView is present
-    # has_webview = any(e.get("type") == "PossibleWebView" for e in interactive_elements)
-    # should_send_screenshot = screenshot_requested or has_webview
+    has_webview = any(e.get("type") == "PossibleWebView" for e in interactive_elements)
+    should_send_screenshot = screenshot_requested or has_webview
 
     payload = {
         'current_os': 'MacOS' if platform.system() == 'darwin' else platform.system(),
@@ -318,9 +318,9 @@ def get_next_step():
         'current_running_apps': running_apps,
     }
 
-    # if should_send_screenshot:
-    payload['screenshot_b64'] = take_screenshot_b64()
-    screenshot_requested = False
+    if should_send_screenshot:
+        payload['screenshot_b64'] = take_screenshot_b64()
+        screenshot_requested = False
 
     try:
         response = requests.post(url, json=payload, headers=headers)
