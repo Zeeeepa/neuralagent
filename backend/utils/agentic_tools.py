@@ -2,17 +2,10 @@ from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader, YoutubeLoader
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import AzureChatOpenAI
+from . import llm_provider
 
 
-llm = AzureChatOpenAI(
-    azure_deployment='gpt-4.1-mini',
-    api_version='2024-12-01-preview',
-    temperature=0.3,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
-)
+llm = llm_provider.get_llm(agent='summarizer', temperature=0.3)
 
 
 def fetch_and_summarize_url(url: str) -> str:

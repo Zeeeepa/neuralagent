@@ -161,6 +161,9 @@ PLANNER_AGENT_MODEL_ID=gpt-4.1
 COMPUTER_USE_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
 COMPUTER_USE_AGENT_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 
+SUMMARIZER_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select One
+SUMMARIZER_AGENT_MODEL_ID=gpt-4.1-mini
+
 # Internal use only by Neural for optional screenshot logging during training (off by default).
 # This is not used by the open-source app or contributors.
 ENABLE_SCREENSHOT_LOGGING_FOR_TRAINING=false
@@ -252,6 +255,7 @@ Agent types include:
 - `TITLE_AGENT`
 - `SUGGESTOR_AGENT`
 - `COMPUTER_USE_AGENT`
+- `SUMMARIZER_AGENT`
 
 ---
 
