@@ -1,14 +1,18 @@
 import React from 'react';
 import { LoadingDialogContainer, LoadingDialogOverlay } from './LoadingDialogElements';
 import ClipLoader from "react-spinners/ClipLoader";
+import { useSelector } from 'react-redux';
 
 function LoadingDialog() {
+
+  const isDarkMode = useSelector(state => state.isDarkMode);
+
   return (
     <>
       <LoadingDialogOverlay />
-      <LoadingDialogContainer>
+      <LoadingDialogContainer isDarkMode={isDarkMode}>
         <ClipLoader
-          color="var(--secondary-color)"
+          color={isDarkMode ? "var(--secondary-color)" : "var(--primary-color)"}
           size={100}
         />
       </LoadingDialogContainer>

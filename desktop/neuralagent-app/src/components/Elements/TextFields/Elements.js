@@ -39,7 +39,7 @@ export const TextField = styled.input`
   border-radius: ${props => props.borderRadius ? props.borderRadius : '7px'};
   font-family: inherit;
   resize: none;
-  outline: ${props => props.outlined ? 'rgba(0, 0, 0, 0.9) solid 1px' : 'none'};
+  outline: ${props => props.outlined ? (props.isDarkMode ? 'rgba(255, 255, 255, 0.9) solid 1px' : 'rgba(0, 0, 0, 0.9) solid 1px') : 'none'};
   border: none;
   font-weight: 400;
 

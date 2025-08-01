@@ -100,7 +100,7 @@ function SignUp() {
             <a href={constants.NEURALAGENT_LINK} target="_blank" rel="noreferrer" style={{textDecoration: 'none'}}>
               <img
                 src={neuralagent_logo_white}
-                height={45}
+                height={65}
                 alt="NeuralAgent"
                 style={{userSelect: 'none', pointerEvents: 'none'}}
               />

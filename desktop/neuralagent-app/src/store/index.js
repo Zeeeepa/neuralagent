@@ -21,6 +21,13 @@ export function setLoadingDialog(isLoading) {
   };
 }
 
+export function setDarkMode(isDarkMode) {
+  return {
+    type: 'SET_DARK_MODE',
+    isDarkMode: isDarkMode,
+  };
+}
+
 export function setAccessToken(accessToken) {
   return {
     type: 'SET_ACCESS_TOKEN',
@@ -55,6 +62,7 @@ const defaultState = {
   isAppLoading: true,
   isFullLoading: false,
   isLoadingDialog: false,
+  isDarkMode: false,
   accessToken: null,
   user: null,
   isError: false,
@@ -74,6 +82,9 @@ function reducer(state=defaultState, action) {
       return newState;
     case 'SET_LOADING_DIALOG':
       newState.isLoadingDialog = action.isLoadingDialog;
+      return newState;
+    case 'SET_DARK_MODE':
+      newState.isDarkMode = action.isDarkMode;
       return newState;
     case 'SET_ACCESS_TOKEN':
       newState.accessToken = action.accessToken;

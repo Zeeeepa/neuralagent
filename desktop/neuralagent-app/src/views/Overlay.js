@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import neuralagent_logo_ic_only_white from '../assets/neuralagent_logo_ic_only_white.png'
+import neuralagent_logo_ic_only_white from '../assets/neuralagent_logo_ic_only_white.png';
+import neuralagent_logo_ic_only from '../assets/neuralagent_logo_ic_only.png';
 import { AvatarButton, IconButton } from '../components/Elements/Button';
 import { useSelector } from 'react-redux';
 import axios from '../utils/axios';
@@ -24,7 +25,7 @@ const Input = styled.input`
   flex: 1;
   border: none;
   background: transparent;
-  color: white;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
   font-size: 14px;
   outline: none;
 `;
@@ -38,7 +39,7 @@ const Spinner = styled.div`
   margin-left: 8px;
   width: 21px;
   height: 21px;
-  border: 2px solid white;
+  border: ${props => props.isDarkMode ? '2px solid white' : '2px solid rgba(0,0,0,0.7)'};
   border-top: 2px solid transparent;
   border-radius: 50%;
   animation: ${spin} 1s linear infinite;
@@ -46,7 +47,7 @@ const Spinner = styled.div`
 
 const SuggestionsPanel = styled.div`
   margin-top: 5px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.1)'};
   border-radius: 8px;
   padding: 10px;
   flex: 1;
@@ -56,15 +57,15 @@ const SuggestionsPanel = styled.div`
 const SuggestionItem = styled.div`
   padding: 8px;
   margin-bottom: 6px;
-  background: rgba(255,255,255,0.07);
+  background: ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)'};
   border-radius: 6px;
-  color: white;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
   font-size: 13px;
   cursor: pointer;
   transition: background 0.2s;
 
   &:hover {
-    background: rgba(255,255,255,0.15);
+    background: ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'};
   }
 `;
 
@@ -81,12 +82,7 @@ const SkeletonItem = styled.div`
   height: 36px;
   margin-bottom: 6px;
   border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.07) 25%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.07) 75%
-  );
+  background: ${props => props.isDarkMode ? 'linear-gradient(90deg,rgba(255, 255, 255, 0.07) 25%, rgba(255, 255, 255, 0.15) 50%,rgba(255, 255, 255, 0.07) 75%)' : 'linear-gradient(90deg,rgba(0, 0, 0, 0.07) 25%, rgba(0, 0, 0, 0.15) 50%,rgba(0, 0, 0, 0.07) 75%)'};
   background-size: 200px 100%;
   animation: ${shimmer} 1.2s infinite;
 `;
@@ -100,9 +96,9 @@ const ModeToggle = styled.button`
   display: flex;
   align-items: center;
   gap: 4px;
-  background-color: ${({ active }) => (active ? 'rgba(255,255,255,0.1)' : 'transparent')};
-  color: #fff;
-  border: thin solid rgba(255,255,255,0.2);
+  background-color: ${props => props.isDarkMode ? (props.active ? 'rgba(255,255,255,0.1)' : 'transparent') : (props.active ? 'rgba(0,0,0,0.05)' : 'transparent')};
+  color: ${props => props.isDarkMode ? '#fff' : 'var(--primary-color)'};
+  border: ${props => props.isDarkMode ? 'thin solid rgba(255,255,255,0.2)' : 'thin solid var(--primary-color)'};
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 11.5px;
@@ -110,7 +106,7 @@ const ModeToggle = styled.button`
   cursor: pointer;
 
   &:hover {
-    background-color: rgba(255,255,255,0.1);
+    background-color: ${props => props.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
   }
 
   svg {
@@ -129,6 +125,7 @@ export default function Overlay() {
   const [thinkingMode, setThinkingMode] = useState(false);
 
   const accessToken = useSelector(state => state.accessToken);
+  const isDarkMode = useSelector(state => state.isDarkMode);
 
   const executeTask = () => {
     if (loading) {
@@ -284,11 +281,11 @@ export default function Overlay() {
   return (
     <Container>
       <div style={{display: 'flex', alignItems: 'center', width: '100%', height: '60px'}}>
-        <AvatarButton onClick={() => toggleOverlay()}>
+        <AvatarButton color='transparent' onClick={() => toggleOverlay()}>
           <img
-            src={neuralagent_logo_ic_only_white}
+            src={isDarkMode ? neuralagent_logo_ic_only_white : neuralagent_logo_ic_only}
             alt='NeuralAgent'
-            height={30}
+            height={46}
             style={{userSelect: 'none', pointerEvents: 'none'}}
           />
         </AvatarButton>
@@ -297,6 +294,7 @@ export default function Overlay() {
             <div style={{width: '10px'}} />
             <Input
               value={messageText}
+              isDarkMode={isDarkMode}
               onChange={(e) => setMessageText(e.target.value)}
               placeholder="Ask NeuralAgent..."
               onKeyDown={(e) => e.key === 'Enter' && executeTask()}
@@ -307,6 +305,7 @@ export default function Overlay() {
                 <ToggleContainer>
                   <ModeToggle
                     active={backgroundMode}
+                    isDarkMode={isDarkMode}
                     onClick={() => onBGModeToggleChange(!backgroundMode)}
                   >
                     <MdOutlineSchedule />
@@ -316,6 +315,7 @@ export default function Overlay() {
                 <ToggleContainer>
                   <ModeToggle
                     active={thinkingMode}
+                    isDarkMode={isDarkMode}
                     onClick={() => setThinkingMode(!thinkingMode)}
                   >
                     <GiBrain />
@@ -323,11 +323,11 @@ export default function Overlay() {
                 </ToggleContainer>
               </>
             )}
-            {(loading || runningThreadId !== null) && <Spinner />}
+            {(loading || runningThreadId !== null) && <Spinner isDarkMode={isDarkMode} />}
             <div style={{width: '5px'}} />
             {
             runningThreadId !== null && <>
-                <IconButton iconSize='21px' color='white' onClick={() => cancelRunningTask(runningThreadId)}
+                <IconButton iconSize='21px' color={isDarkMode ? '#fff' : 'rgba(0,0,0,0.6)'} onClick={() => cancelRunningTask(runningThreadId)}
                   disabled={loading}>
                   <FaStopCircle />
                 </IconButton>
@@ -337,14 +337,15 @@ export default function Overlay() {
         )}
       </div>
       {expanded && showSuggestions && (
-        <SuggestionsPanel>
+        <SuggestionsPanel isDarkMode={isDarkMode}>
           {suggestions.length === 0
             ? Array.from({ length: 7 }).map((_, idx) => (
-                <SkeletonItem key={idx} />
+                <SkeletonItem isDarkMode={isDarkMode} key={idx} />
               ))
             : suggestions.map((s, idx) => (
                 <SuggestionItem
                   key={idx}
+                  isDarkMode={isDarkMode}
                   onClick={() => executeSuggestion(s.ai_prompt)}
                 >
                   {s.title}

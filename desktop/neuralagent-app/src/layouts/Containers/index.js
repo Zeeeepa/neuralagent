@@ -1,6 +1,12 @@
 import styled from 'styled-components';
 import breakpoint from '../../utils/breakpoint';
 
+export const AppTheme = styled.div`
+  background: ${props => props.isDarkMode ? 'var(--dark-theme-background)' : 'var(--light-background)'};
+  color-scheme: ${props => props.isDarkMode ? 'dark' : 'light'};
+  min-height: 100vh;
+`
+
 export const AppMainContainer = styled.div`
   display: flex;
   height: 100vh;
@@ -8,8 +14,8 @@ export const AppMainContainer = styled.div`
 `;
 
 export const OverlayContainer = styled.div`
-  color: white;
-  background: transparent;
+  background: ${props => props.isDarkMode ? 'var(--dark-theme-background)' : 'var(--sidebar-color)'};
+  color-scheme: ${props => props.isDarkMode ? 'dark' : 'light'};
   height: 100vh;
   width: 100vw;
   overflow: hidden;

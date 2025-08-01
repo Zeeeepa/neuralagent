@@ -19,6 +19,7 @@ import {
 } from 'react-icons/md';
 import { FiCornerDownRight } from 'react-icons/fi';
 import { GiBrain } from 'react-icons/gi';
+import { useSelector } from 'react-redux';
 
 const MessageContainer = styled.div`
   display: flex;
@@ -27,9 +28,10 @@ const MessageContainer = styled.div`
 `;
 
 const Bubble = styled.div`
-  background-color: ${({ role }) =>
-    role === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)'};
-  color: #fff;
+  background-color: ${props => props.isDarkMode ? 
+    (props.role === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)') : 
+    (props.role === 'user' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)')};
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
   padding: 14px 18px;
   border-radius: 16px;
   max-width: 65%;
@@ -94,6 +96,7 @@ const actionMap = {
 
 
 export default function ChatMessage({ message }) {
+  const isDarkMode = useSelector(state => state.isDarkMode);
   const isUser = message.thread_chat_from !== 'from_ai';
   const role = isUser ? 'user' : 'assistant';
 
@@ -316,7 +319,7 @@ export default function ChatMessage({ message }) {
 
   return (
     <MessageContainer role={role}>
-      <Bubble role={role}>
+      <Bubble role={role} isDarkMode={isDarkMode}>
         {getContent()}
       </Bubble>
     </MessageContainer>

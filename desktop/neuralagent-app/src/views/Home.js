@@ -24,7 +24,9 @@ const HomeDiv = styled.div`
 `;
 
 const Card = styled.div`
-  border: thin solid rgba(255,255,255,0.3);
+  border: ${props => props.isDarkMode ? 'thin solid rgba(255,255,255,0.1)' : 'thin solid rgba(0,0,0,0.1)'};
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+  background: ${props => props.isDarkMode ? '#30302e' : '#fff'};
   border-radius: 20px;
   padding: 15px;
   width: 100%;
@@ -36,16 +38,16 @@ const ToggleContainer = styled.div`
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: var(--secondary-color);
+  color: ${props => props.isDarkMode ? 'var(--secondary-color)' : 'var(--primary-color)'};
 `;
 
 const ModeToggle = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: ${({ active }) => (active ? 'rgba(255,255,255,0.1)' : 'transparent')};
-  color: #fff;
-  border: thin solid rgba(255,255,255,0.3);
+  background-color: ${props => (props.active ? (props.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent')};
+  color: ${props => props.isDarkMode ? 'var(--secondary-color)' : 'var(--primary-color)'};
+  border: ${props => props.isDarkMode ? 'thin solid rgba(255,255,255,0.3)' : 'thin solid var(--primary-color)'};
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 13px;
@@ -53,7 +55,7 @@ const ModeToggle = styled.button`
   cursor: pointer;
 
   &:hover {
-    background-color: rgba(255,255,255,0.1);
+    background-color: ${props => props.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'};
   }
 `;
 
@@ -64,6 +66,7 @@ export default function Home() {
   const [thinkingMode, setThinkingMode] = useState(false);
 
   const accessToken = useSelector(state => state.accessToken);
+  const isDarkMode = useSelector(state => state.isDarkMode);
 
   const dispatch = useDispatch();
 
@@ -193,13 +196,13 @@ export default function Home() {
 
   return (
     <HomeDiv>
-      <Text fontWeight='600' fontSize='23px' color='#fff'>
+      <Text fontWeight='600' fontSize='23px' color={isDarkMode ? '#fff' : '#000'}>
         Start a New Task
       </Text>
-      <Card style={{marginTop: '15px'}}>
+      <Card isDarkMode={isDarkMode} style={{marginTop: '15px'}}>
         <NATextArea
           background='transparent'
-          isDarkMode
+          isDarkMode={isDarkMode}
           padding='10px 4px'
           placeholder="What do you want NeuralAgent to do?"
           rows='3'
@@ -208,9 +211,10 @@ export default function Home() {
           onKeyDown={handleTextEnterKey}
         />
         <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
-          <ToggleContainer>
+          <ToggleContainer isDarkMode={isDarkMode}>
             <ModeToggle
               active={backgroundMode}
+              isDarkMode={isDarkMode}
               onClick={() => onBGModeToggleChange(!backgroundMode)}
             >
               <MdOutlineSchedule style={{fontSize: '19px'}} />
@@ -218,8 +222,9 @@ export default function Home() {
             </ModeToggle>
           </ToggleContainer>
           <div style={{width: '10px'}} />
-          <ToggleContainer>
+          <ToggleContainer isDarkMode={isDarkMode}>
             <ModeToggle
+              isDarkMode={isDarkMode}
               active={thinkingMode}
               onClick={() => setThinkingMode(!thinkingMode)}
             >

@@ -62,6 +62,14 @@ ipcMain.on('expand-overlay', (_, hasSuggestions) => {
   expandMinimizeOverlay(true, hasSuggestions);
 });
 
+ipcMain.on('set-dark-mode', (_, isDarkMode) => {
+  store.set(constants.DARK_MODE_STORE_KEY, isDarkMode.toString());
+  if (overlayWindow) {
+    overlayWindow.reload();
+  }
+});
+ipcMain.handle('is-dark-mode', () => store.get(constants.DARK_MODE_STORE_KEY));
+
 ipcMain.handle('get-last-background-mode-value', () => store.get(constants.LAST_BACKGROUND_MODE_VALUE));
 ipcMain.handle('get-last-thinking-mode-value', () => store.get(constants.LAST_THINKING_MODE_VALUE));
 ipcMain.on('set-last-thinking-mode-value', (_, lastThinkingModeValue) => store.set(constants.LAST_THINKING_MODE_VALUE, lastThinkingModeValue));

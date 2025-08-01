@@ -5,7 +5,7 @@ export const LoadingDialogContainer = styled.div`
   z-index: 1500;
   height: 200px;
   width: 200px;
-  background: var(--card-color);
+  background: ${props => props.isDarkMode ? 'var(--card-color)' : '#fff'};
   display: flex;
   justify-content: center;
   align-items: center;

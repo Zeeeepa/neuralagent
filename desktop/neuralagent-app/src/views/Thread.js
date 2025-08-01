@@ -36,7 +36,9 @@ const ChatContainer = styled.div`
 `;
 
 const SendingContainer = styled.div`
-  border: thin solid rgba(255,255,255,0.3);
+  border: ${props => props.isDarkMode ? 'thin solid rgba(255,255,255,0.1)' : 'thin solid rgba(0,0,0,0.1)'};
+  background: ${props => props.isDarkMode ? '#30302e' : '#fff'};
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
   padding: 10px;
   border-radius: 20px;
 `;
@@ -52,17 +54,16 @@ const ToggleContainer = styled.div`
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: var(--secondary-color);
+  color: ${props => props.isDarkMode ? 'var(--secondary-color)' : 'var(--primary-color)'};
 `;
-
 
 const ModeToggle = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: ${({ active }) => (active ? 'rgba(255,255,255,0.1)' : 'transparent')};
-  color: #fff;
-  border: thin solid rgba(255,255,255,0.3);
+  background-color: ${props => (props.active ? (props.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent')};
+  color: ${props => props.isDarkMode ? 'var(--secondary-color)' : 'var(--primary-color)'};
+  border: ${props => props.isDarkMode ? 'thin solid rgba(255,255,255,0.3)' : 'thin solid var(--primary-color)'};
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 13px;
@@ -70,7 +71,7 @@ const ModeToggle = styled.button`
   cursor: pointer;
 
   &:hover {
-    background-color: rgba(255,255,255,0.1);
+    background-color: ${props => props.isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'};
   }
 `;
 
@@ -87,6 +88,7 @@ export default function Thread() {
   const [isDeleteThreadDialogOpen, setDeleteThreadDialogOpen] = useState(false);
 
   const accessToken = useSelector(state => state.accessToken);
+  const isDarkMode = useSelector(state => state.isDarkMode);
 
   const { tid } = useParams();
 
@@ -306,20 +308,20 @@ export default function Thread() {
         title='Delete Thread'
         text='Are you sure that you want to delete this thread?'
         onYesClicked={deleteThread}
-        isDarkMode={true}
+        isDarkMode={isDarkMode}
       />
       <ThreadDiv>
         <Header>
-          <Text fontSize='20px' fontWeight='600' color={'#fff'}>
+          <Text fontSize='20px' fontWeight='600' color={isDarkMode ? '#fff' : '#000'}>
             {thread.title}
           </Text>
           <FlexSpacer />
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton iconSize='27px' color='#fff' style={{ margin: '0 5px' }} dark
+            <IconButton iconSize='27px' color={isDarkMode ? '#fff' : 'rgba(0,0,0,0.5)'} style={{ margin: '0 5px' }} dark
               onClick={() => setThreadDialogOpen(true)}>
               <MdEdit />
             </IconButton>
-            <IconButton iconSize='27px' color='#fff' style={{ margin: '0 5px' }} dark
+            <IconButton iconSize='27px' color={isDarkMode ? '#fff' : 'var(--danger-color)'} style={{ margin: '0 5px' }} dark
               onClick={() => setDeleteThreadDialogOpen(true)}>
               <MdDelete />
             </IconButton>
@@ -332,20 +334,21 @@ export default function Thread() {
           <div ref={bottomRef} />
         </ChatContainer>
         <div style={{ padding: '15px' }}>
-          <SendingContainer>
+          <SendingContainer isDarkMode={isDarkMode}>
             <NATextArea
               background='transparent'
               placeholder={'What do you want NeuralAgent to do?'}
               value={messageText}
-              isDarkMode
+              isDarkMode={isDarkMode}
               rows='2'
               onKeyDown={handleTextEnterKey}
               onChange={(e) => setMessageText(e.target.value)}
             />
             <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center' }}>
-              <ToggleContainer>
+              <ToggleContainer isDarkMode={isDarkMode}>
                 <ModeToggle
                   active={backgroundMode}
+                  isDarkMode={isDarkMode}
                   onClick={() => onBGModeToggleChange(!backgroundMode)}
                 >
                   <MdOutlineSchedule style={{fontSize: '19px'}} />
@@ -353,9 +356,10 @@ export default function Thread() {
                 </ModeToggle>
               </ToggleContainer>
               <div style={{width: '10px'}} />
-              <ToggleContainer>
+              <ToggleContainer isDarkMode={isDarkMode}>
                 <ModeToggle
                   active={thinkingMode}
+                  isDarkMode={isDarkMode}
                   onClick={() => setThinkingMode(!thinkingMode)}
                 >
                   <GiBrain style={{fontSize: '19px'}} />

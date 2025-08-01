@@ -101,7 +101,7 @@ function Login() {
           <AccountHeader>
             <img
               src={neuralagent_logo_white}
-              height={45}
+              height={65}
               alt="NeuralAgent"
               style={{userSelect: 'none', pointerEvents: 'none'}}
             />

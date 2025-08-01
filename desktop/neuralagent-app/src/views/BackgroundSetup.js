@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 
 const Wrapper = styled.div`
   padding: 30px;
-  color: white;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
   text-align: center;
 `;
 
@@ -27,6 +28,8 @@ export default function BackgroundSetup() {
   const [status, setStatus] = useState('Working...');
   const [progress, setProgress] = useState(0);
 
+  const isDarkMode = useSelector(state => state.isDarkMode);
+
   useEffect(() => {
     window.electronAPI.onSetupStatus(setStatus);
     window.electronAPI.onSetupProgress(setProgress);
@@ -42,7 +45,7 @@ export default function BackgroundSetup() {
   }, []);
 
   return (
-    <Wrapper>
+    <Wrapper isDarkMode={isDarkMode}>
       <div style={{fontSize: '18px', fontWeight: '600'}}>Setting up Background Mode</div>
       <p style={{fontSize: '16px', fontWeight: '400'}}>{status}</p>
       <ProgressBar>

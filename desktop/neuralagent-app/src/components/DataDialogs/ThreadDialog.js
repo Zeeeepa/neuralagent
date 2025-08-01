@@ -15,6 +15,7 @@ function ThreadDialog({ isOpen, setOpen, threadObj=null, onSuccess }) {
   const [title, setTitle] = useState('');
 
   const accessToken = useSelector(state => state.accessToken);
+  const isDarkMode = useSelector(state => state.isDarkMode);
   
   const dispatch = useDispatch();
 
@@ -90,7 +91,7 @@ function ThreadDialog({ isOpen, setOpen, threadObj=null, onSuccess }) {
         maxWidth="500px"
         title={'Edit Thread'}
         padding='10px 15px'
-        isDarkMode
+        isDarkMode={isDarkMode}
         child={
           <>
             <div>
@@ -100,8 +101,9 @@ function ThreadDialog({ isOpen, setOpen, threadObj=null, onSuccess }) {
                 labelFontWeight='500'
                 verticalLabel
                 value={title}
-                background='rgba(0, 0, 0, 0.3)'
-                isDarkMode
+                outlined
+                background='transparent'
+                isDarkMode={isDarkMode}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>

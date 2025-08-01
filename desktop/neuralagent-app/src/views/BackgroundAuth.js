@@ -1,10 +1,11 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  color: var(--secondary-color);
+  color: ${props => props.isDarkMode ? 'var(--secondary-color)' : 'rgba(0,0,0,0.7)'};
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -19,8 +20,7 @@ const InstructionBox = styled.div`
 `;
 
 const Highlight = styled.span`
-  font-weight: 500;
-  color: var(--light-gray-background);
+  font-weight: 600;
 `;
 
 const FrameWrapper = styled.div`
@@ -33,8 +33,11 @@ const FrameWrapper = styled.div`
 `;
 
 export default function BackgroundAuth() {
+
+  const isDarkMode = useSelector(state => state.isDarkMode);
+
   return (
-    <Container>
+    <Container isDarkMode={isDarkMode}>
       <InstructionBox>
         Log in to any sites or apps you'd like <Highlight>NeuralAgent</Highlight> to control in the background. Close the window when you finish.<br />
         <small style={{ opacity: 0.7 }}>

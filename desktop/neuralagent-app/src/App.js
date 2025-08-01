@@ -10,11 +10,11 @@ import LoadingDialog from './components/LoadingDialog';
 import FullLoading from './components/FullLoading';
 import constants from './utils/constants';
 import MessageBar from './components/Elements/MessageBar';
-import { setAppLoading, setUser, setAccessToken, setLoadingDialog } from './store';
+import { setAppLoading, setUser, setAccessToken, setLoadingDialog, setDarkMode } from './store';
 import RedirectTo from './components/RedirectTo';
 import axios from './utils/axios';
 import { logoutUser, refreshToken } from './utils/helpers';
-import { AppMainContainer, OverlayContainer } from './layouts/Containers';
+import { AppTheme, AppMainContainer, OverlayContainer } from './layouts/Containers';
 import Sidebar from './layouts/Sidebar';
 import { useLocation } from 'react-router-dom';
 
@@ -33,6 +33,7 @@ function AppRoutes() {
   const isBackgroundModeRoutes = location.pathname === '/background-auth' || location.pathname === '/background-task' || location.pathname === '/background-setup';
 
   const accessToken = useSelector(state => state.accessToken);
+  const isDarkMode = useSelector(state => state.isDarkMode);
   const isError = useSelector(state => state.isError);
   const errorMessage = useSelector(state => state.errorMessage);
   const isSuccess = useSelector(state => state.isSuccess);
@@ -46,27 +47,31 @@ function AppRoutes() {
       {accessToken !== null ? (
         isOverlayRoute || isBackgroundModeRoutes ? (
           isOverlayRoute ? (
-            <OverlayContainer>
+            <OverlayContainer isDarkMode={isDarkMode}>
               <Routes>
                 <Route path="/overlay" element={<Overlay />} />
               </Routes>
             </OverlayContainer>
           ) : (
-            <Routes>
-              <Route path="/background-auth" element={<BackgroundAuth />} />
-              <Route path="/background-task" element={<BackgroundTask />} />
-              <Route path="/background-setup" element={<BackgroundSetup />} />
-            </Routes>
+            <AppTheme isDarkMode={isDarkMode}>
+              <Routes>
+                <Route path="/background-auth" element={<BackgroundAuth />} />
+                <Route path="/background-task" element={<BackgroundTask />} />
+                <Route path="/background-setup" element={<BackgroundSetup />} />
+              </Routes>
+            </AppTheme>
           )
         ) : (
-          <AppMainContainer>
-            <Sidebar />
-            <Routes>
-              <Route path='/' element={<Home />} />
-              <Route path='/threads/:tid' element={<Thread />} />
-              <Route path="*" element={<RedirectTo linkType="router" to="/" redirectType="replace" />} />
-            </Routes>
-          </AppMainContainer>
+          <AppTheme isDarkMode={isDarkMode}>
+            <AppMainContainer>
+              <Sidebar />
+              <Routes>
+                <Route path='/' element={<Home />} />
+                <Route path='/threads/:tid' element={<Thread />} />
+                <Route path="*" element={<RedirectTo linkType="router" to="/" redirectType="replace" />} />
+              </Routes>
+            </AppMainContainer>
+          </AppTheme>
         )
       ) : (
         <Routes>
@@ -108,6 +113,8 @@ function App() {
 
   useEffect(() => {
     const asyncTask = async () => {
+      const storedIsDarkModeValue = await window.electronAPI.isDarkMode() === 'true';
+      dispatch(setDarkMode(storedIsDarkModeValue));
       const storedAccessToken = await window.electronAPI.getToken();
       console.log(storedAccessToken);
       if (storedAccessToken !== undefined && storedAccessToken !== null) {

@@ -5,9 +5,8 @@
 }
 
 :root {
-  color-scheme: dark;
-  --page-background: #15202B;
-  --primary-color: #101743;
+  --light-background: #faf9f5;
+  --primary-color: #1b2e9e;
   --secondary-color: #c5c5c4;
   --third-color: #252525;
   --fourth-color: #000435;
@@ -20,8 +19,9 @@
   --max-login-width: 1100px;
   --max-page-width: 1200px;
   --light-gray-background: #F5F5F5;
-  --dark-theme-background: #15202B; /* #121418; */ /* #1e1e1e; */
-  --navigation-bar-color: #191B1F;
+  --dark-theme-background: #262624; /* #121418; */ /* #1e1e1e; */ /* #15202B */
+  --sidebar-color-dark: #1f1e1d;
+  --sidebar-color: #f5f4ed;
   --card-color: #191B1F;
   --code-editor-background: #1E1E1E;
   --dark-mode-bg-alt: #262624;
@@ -29,5 +29,5 @@
 
 body {
   font-family: 'Poppins', 'Segoe UI', sans-serif;
-  background-color: var(--page-background);
+  background-color: var(--light-background);
 }

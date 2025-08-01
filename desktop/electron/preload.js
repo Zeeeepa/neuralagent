@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   setToken: (token) => ipcRenderer.send('set-token', token),
   getToken: () => ipcRenderer.invoke('get-token'),
+  setDarkMode: (isDarkMode) => ipcRenderer.send('set-dark-mode', isDarkMode),
+  isDarkMode: () => ipcRenderer.invoke('is-dark-mode'),
   deleteToken: () => ipcRenderer.send('delete-token'),
   setRefreshToken: (refreshToken) => ipcRenderer.send('set-refresh-token', refreshToken),
   getRefreshToken: () => ipcRenderer.invoke('get-refresh-token'),
