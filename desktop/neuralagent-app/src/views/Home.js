@@ -235,7 +235,7 @@ export default function Home() {
           <FlexSpacer isRTL={false} />
           <IconButton
             iconSize='35px'
-            color='#fff'
+            color={isDarkMode ? '#fff' : 'rgba(0,0,0,0.7)'}
             disabled={messageText.length === 0}
             onClick={() => createThread()}
             onKeyDown={handleTextEnterKey}>

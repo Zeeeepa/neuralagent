@@ -373,14 +373,14 @@ export default function Thread() {
                 thread.status === 'working' ? (
                   <IconButton
                     iconSize='35px'
-                    color={'#fff'}
+                    color={isDarkMode ? '#fff' : 'rgba(0,0,0,0.7)'}
                     onClick={() => cancelRunningTask()}>
                     <FaStopCircle />
                   </IconButton>
                 ) : (
                   <IconButton
                     iconSize='35px'
-                    color={'#fff'}
+                    color={isDarkMode ? '#fff' : 'rgba(0,0,0,0.7)'}
                     disabled={messageText.length === 0}
                     onClick={() => sendMessage()}>
                     <FaArrowAltCircleUp />
