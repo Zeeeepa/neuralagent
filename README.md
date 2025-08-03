@@ -15,7 +15,7 @@
 
 In this demo, NeuralAgent was given the following prompt:
 
-"Find me 5 trending GitHub repos, then write about them on Notepad and save it to my desktop!"
+"Find 5 2025 AI trends, write about them on Notepad and save it to my desktop!"
 
 It took care of the rest!
 
