@@ -9,6 +9,7 @@ def generate_thread_title(task):
 
     prompt = ChatPromptTemplate.from_messages([
         ('system', ai_prompts.TITLE_GENERATION_PROMPT),
+        ('user', 'Now generate a title for the following task:\n{task}')
     ])
 
     chain = prompt | llm

@@ -13,9 +13,6 @@ Input: "Book a flight from NYC to LA on Friday"
 
 Input: "Design a landing page for a new product"
 → Output: {{ "title": "Landing Page Design" }}
-
-Now generate a title for the following task:
-{task}
 """
 
 

@@ -69,7 +69,7 @@ def next_step(tid: str, next_step_req: BackgroundNextStepRequest, db: Session = 
             image_io = io.BytesIO(image_bytes)
             screenshot_s3_path = upload_helper.upload_screenshot_s3_bytesio(image_io, extension="png")
         
-        if os.getenv('COMPUTER_USE_AGENT_MODEL_TYPE') == 'ollama':
+        if os.getenv('COMPUTER_USE_AGENT_MODEL_TYPE') == 'ollama' or os.getenv('COMPUTER_USE_AGENT_MODEL_TYPE') == 'gemini':
             screenshot_user_message_block = {
                 "type": "image_url",
                 "image_url": f"data:image/png;base64,{next_step_req.screenshot_b64}"
