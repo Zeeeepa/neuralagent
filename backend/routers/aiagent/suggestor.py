@@ -48,7 +48,7 @@ def get_suggestions(request: SuggestorRequest, db: Session = Depends(get_session
         })
 
     if request.screenshot_b64:
-        if os.getenv('SUGGESTOR_AGENT_MODEL_TYPE') == 'ollama':
+        if os.getenv('SUGGESTOR_AGENT_MODEL_TYPE') == 'ollama' or os.getenv('SUGGESTOR_AGENT_MODEL_TYPE') == 'gemini':
             prompt_blocks.append({
             "type": "image_url",
             "image_url": f"data:image/png;base64,{request.screenshot_b64}"
