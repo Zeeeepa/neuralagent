@@ -1,7 +1,8 @@
 from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import WebBaseLoader, YoutubeLoader
+from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.prompts import ChatPromptTemplate
+from youtube_transcript_api import YouTubeTranscriptApi
 from . import llm_provider
 
 
@@ -52,22 +53,42 @@ def fetch_and_summarize_pdf(file_path: str = None, url: str = None) -> str:
 
 def summarize_youtube_video(url: str) -> str:
     try:
-        loader = YoutubeLoader.from_youtube_url(url, add_video_info=False)
-        documents = loader.load()
+        # Extract video ID from URL
+        if "watch?v=" in url:
+            video_id = url.split("watch?v=")[-1].split("&")[0]
+        elif "youtu.be/" in url:
+            video_id = url.split("youtu.be/")[-1].split("?")[0]
+        else:
+            return "❌ Invalid YouTube URL format."
+
+        ytt_api = YouTubeTranscriptApi()
+        transcript_list = ytt_api.list(video_id)
+
+        try:
+            # Try to find an English transcript first
+            transcript = transcript_list.find_transcript(["en"])
+        except Exception:
+            # If English not found, fallback to first available transcript
+            transcript = next(iter(transcript_list))
+
+        # Fetch the transcript content
+        fetched = transcript.fetch()
+        transcript_text = "\n".join([snippet.text for snippet in fetched])
+
+        # Split the transcript into manageable chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        chunks = text_splitter.create_documents([transcript_text])
+        full_text = "\n\n".join(chunk.page_content for chunk in chunks)
+
+        # Use the LLM to summarize
+        prompt = ChatPromptTemplate.from_template("Summarize the following YouTube transcript:\n\n{input}")
+        chain = prompt | llm
+        result = chain.invoke({"input": full_text})
+
+        return result.content if hasattr(result, "content") else str(result)
+
     except Exception as e:
-        return f"Unexpected error fetching video transcript: {str(e)}"
-
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    docs = text_splitter.split_documents(documents)
-
-    # Prepare the full text
-    full_text = "\n\n".join(doc.page_content for doc in docs)
-
-    prompt = ChatPromptTemplate.from_template("Summarize the following:\n\n{input}")
-    chain = prompt | llm
-
-    result = chain.invoke({"input": full_text})
-    return result.content if hasattr(result, "content") else str(result)
+        return f"❌ Error summarizing video: {str(e)}"
 
 
 def run_tool_server_side(tool_name: str, args: dict) -> str:
