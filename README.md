@@ -147,7 +147,7 @@ OLLAMA_URL=http://127.0.0.1:11434
 
 # Model config per agent
 CLASSIFIER_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
-CLASSIFIER_AGENT_MODEL_ID=gpt-5-chat
+CLASSIFIER_AGENT_MODEL_ID=gpt-5
 
 TITLE_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
 TITLE_AGENT_MODEL_ID=gpt-5-nano
@@ -156,7 +156,7 @@ SUGGESTOR_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini #
 SUGGESTOR_AGENT_MODEL_ID=gpt-5-mini
 
 PLANNER_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
-PLANNER_AGENT_MODEL_ID=gpt-5-chat
+PLANNER_AGENT_MODEL_ID=gpt-5
 
 COMPUTER_USE_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
 COMPUTER_USE_AGENT_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
