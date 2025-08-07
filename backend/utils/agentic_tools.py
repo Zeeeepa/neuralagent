@@ -6,7 +6,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from . import llm_provider
 
 
-llm = llm_provider.get_llm(agent='summarizer', temperature=0.3)
+llm = llm_provider.get_llm(agent='summarizer', temperature=1.0)
 
 
 def fetch_and_summarize_url(url: str) -> str:

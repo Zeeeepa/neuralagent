@@ -5,7 +5,7 @@ from utils import llm_provider
 
 
 def generate_thread_title(task):
-    llm = llm_provider.get_llm(agent='title', temperature=0.3)
+    llm = llm_provider.get_llm(agent='title', temperature=1.0)
 
     prompt = ChatPromptTemplate.from_messages([
         ('system', ai_prompts.TITLE_GENERATION_PROMPT),

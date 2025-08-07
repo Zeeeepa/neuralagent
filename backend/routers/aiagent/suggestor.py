@@ -63,7 +63,7 @@ def get_suggestions(request: SuggestorRequest, db: Session = Depends(get_session
                 }
             })
 
-    llm = llm_provider.get_llm(agent='suggestor', temperature=0.6)
+    llm = llm_provider.get_llm(agent='suggestor', temperature=1.0)
 
     prompt = ChatPromptTemplate.from_messages([
         SystemMessage(content=ai_prompts.SUGGESTOR_AGENT_PROMPT),
