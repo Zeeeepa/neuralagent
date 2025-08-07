@@ -147,22 +147,22 @@ OLLAMA_URL=http://127.0.0.1:11434
 
 # Model config per agent
 CLASSIFIER_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
-CLASSIFIER_AGENT_MODEL_ID=gpt-4.1
+CLASSIFIER_AGENT_MODEL_ID=gpt-5-chat
 
 TITLE_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
-TITLE_AGENT_MODEL_ID=gpt-4.1-nano
+TITLE_AGENT_MODEL_ID=gpt-5-nano
 
 SUGGESTOR_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
-SUGGESTOR_AGENT_MODEL_ID=gpt-4.1-mini
+SUGGESTOR_AGENT_MODEL_ID=gpt-5-mini
 
 PLANNER_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
-PLANNER_AGENT_MODEL_ID=gpt-4.1
+PLANNER_AGENT_MODEL_ID=gpt-5-chat
 
 COMPUTER_USE_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select one
 COMPUTER_USE_AGENT_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 
 SUMMARIZER_AGENT_MODEL_TYPE=openai|azure_openai|anthropic|bedrock|ollama|gemini # Select One
-SUMMARIZER_AGENT_MODEL_ID=gpt-4.1-mini
+SUMMARIZER_AGENT_MODEL_ID=gpt-5-mini
 
 # Internal use only by Neural for optional screenshot logging during training (off by default).
 # This is not used by the open-source app or contributors.
