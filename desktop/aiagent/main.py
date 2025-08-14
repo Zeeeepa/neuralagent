@@ -350,6 +350,58 @@ def get_current_subtask():
         pass
     return None
 
+
+def get_suggestions():
+    api_url = os.getenv("NEURALAGENT_API_URL") + '/aiagent/suggestor'
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + os.getenv("NEURALAGENT_USER_ACCESS_TOKEN"),
+    }
+
+    payload = {
+        "current_os": "MacOS" if platform.system() == "darwin" else platform.system(),
+        "current_interactive_elements": ui_extraction.extract_interactive_elements(),
+        "current_running_apps": ui_extraction.get_running_apps(),
+        "screenshot_b64": take_screenshot_b64(),
+    }
+
+    try:
+        response = requests.post(api_url, json=payload, headers=headers)
+        if response.status_code in (200, 201):
+            return response.json()
+        else:
+            return {"suggestions": [], "error": f"HTTP {response.status_code}"}
+    except Exception as e:
+        return {"suggestions": [], "error": str(e)}
+
+
+def trigger_permission_dialogs():
+    """Simply trigger permission dialogs - don't care about results"""
+    if platform.system() != 'Darwin':
+        return
+    
+    try:
+        # Trigger screen recording dialog
+        with mss.mss() as sct:
+            sct.grab(sct.monitors[1])
+        
+        screen_w, screen_h = pyautogui.size()
+        
+        pos = pyautogui.position()
+        
+        original_pos = pyautogui.position()
+        pyautogui.moveTo(original_pos.x + 1, original_pos.y)
+        time.sleep(0.1)
+        pyautogui.moveTo(original_pos.x, original_pos.y)
+        
+        pyautogui.click(original_pos.x, original_pos.y)
+        
+        pyautogui.press('f15')
+        
+    except:
+        pass
+
+
 async def main_loop():
     while True:
         current_subtask_response = get_current_subtask()
@@ -370,5 +422,18 @@ async def main_loop():
 
         perform_action(action_response)
 
+
+def main():
+    agent_mode = os.getenv('NEURALAGENT_AGENT_MODE', 'agent').lower()
+    
+    if agent_mode == 'suggestor':
+        suggestions = get_suggestions()
+        print(json.dumps(suggestions))
+        return
+    elif agent_mode == 'macos_permission_test' and platform.system().lower() == 'darwin':
+        trigger_permission_dialogs()
+    else:
+        asyncio.run(main_loop())
+
 if __name__ == "__main__":
-    asyncio.run(main_loop())
+    main()

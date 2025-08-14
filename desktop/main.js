@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, dialog, screen } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, dialog, screen, nativeImage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import isDev from 'electron-is-dev';
@@ -38,9 +38,38 @@ function ensureDeviceId() {
   }
 }
 
+async function triggerMacOSPermissionDialogs() {
+  if (process.platform !== 'darwin') {
+    return;
+  }
+
+  spawn(isWindows ? './aiagent/venv/Scripts/python' : './aiagent/venv/bin/python', ['./aiagent/main.py'], {
+    env: {
+      NEURALAGENT_AGENT_MODE: 'macos_permission_test'
+    },
+  });
+  
+  // const agentPath = isDev 
+  //   ? './agent_build/agent'
+  //   : path.join(process.resourcesPath, 'agent');
+  
+  // console.log('[Permission Trigger] Triggering macOS permission dialogs...');
+  
+  // // Just spawn and forget - we don't care about the result
+  // spawn(agentPath, [], {
+  //   env: {
+  //     NEURALAGENT_AGENT_MODE: 'macos_permission_test'
+  //   },
+  // });
+}
 
 ipcMain.on('set-token', (_, token) => {
   store.set(constants.ACCESS_TOKEN_STORE_KEY, token);
+  if (process.platform === 'darwin') {
+    setTimeout(() => {
+      triggerMacOSPermissionDialogs();
+    }, 1000);
+  }
   if (!overlayWindow) {
     createOverlayWindow();
   }
@@ -154,24 +183,26 @@ ipcMain.handle('start-background-setup', async () => {
 ipcMain.handle('get-suggestions', async (_, baseURL) => {
   return new Promise((resolve, reject) => {
 
-    const suggestor = spawn('./aiagent/venv/Scripts/python', ['./aiagent/suggestor.py'], {
-      env: {
-        NEURALAGENT_API_URL: baseURL,
-        NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
-      },
-    });
-
     const isWindows = process.platform === 'win32';
     const isMac = process.platform === 'darwin';
 
+    const suggestor = spawn(isWindows ? './aiagent/venv/Scripts/python' : './aiagent/venv/bin/python', ['./aiagent/main.py'], {
+      env: {
+        NEURALAGENT_API_URL: baseURL,
+        NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
+        NEURALAGENT_AGENT_MODE: 'suggestor',
+      },
+    });
+
     // const suggestorPath = isDev
-    // ? path.join(__dirname, 'agent_build', isWindows ? 'suggestor.exe' : 'suggestor')
-    // : path.join(process.resourcesPath, isWindows ? 'suggestor.exe' : 'suggestor');
+    // ? path.join(__dirname, 'agent_build', isWindows ? 'agent.exe' : 'agent')
+    // : path.join(process.resourcesPath, isWindows ? 'agent.exe' : 'agent');
 
     // const suggestor = spawn(suggestorPath, [], {
     //   env: {
     //     NEURALAGENT_API_URL: baseURL,
     //     NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
+    //     NEURALAGENT_AGENT_MODE: 'suggestor',
     //   },
     // });
 
@@ -215,6 +246,7 @@ ipcMain.on('launch-ai-agent', async (_, baseURL, threadId, backgroundMode) => {
         NEURALAGENT_API_URL: baseURL,
         NEURALAGENT_THREAD_ID: threadId,
         NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
+        NEURALAGENT_AGENT_MODE: 'agent',
         PYTHONUTF8: '1',
       },
     });
@@ -228,6 +260,7 @@ ipcMain.on('launch-ai-agent', async (_, baseURL, threadId, backgroundMode) => {
     //     NEURALAGENT_API_URL: baseURL,
     //     NEURALAGENT_THREAD_ID: threadId,
     //     NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
+    //     NEURALAGENT_AGENT_MODE: 'agent',
     //   },
     // });
     mainWindow?.minimize();
@@ -347,7 +380,7 @@ ipcMain.handle('login-with-google', async () => {
 const createAppMenu = () => {
   const template = [
     {
-      label: 'App',
+      label: 'NeuralAgent',
       submenu: [
         {
           label: 'Background Mode Authentication',
@@ -358,6 +391,7 @@ const createAppMenu = () => {
             launchBackgroundAuthWindow();
           },
         },
+        { type: 'separator' },
         {
           label: 'Logout',
           click: () => {
@@ -367,17 +401,46 @@ const createAppMenu = () => {
             mainWindow?.webContents.send('trigger-logout');
           },
         },
-        { role: 'quit' },
+        { type: 'separator' },
+        {
+          label: 'Quit',
+          role: 'quit'
+        },
       ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectall' }
+      ]
     },
     {
       label: 'View',
       submenu: [
         { role: 'reload' },
-        { role: 'togglefullscreen' },
-        // { role: 'toggledevtools' },
-      ],
+        { role: 'forceReload' },
+        // { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
     },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 };
@@ -637,6 +700,13 @@ if (!gotLock) {
 }
 
 app.whenReady().then(() => {
+  const devIconPath = path.join(__dirname, 'assets', 'icon.png');
+  if (process.platform === 'darwin' && isDev) {
+    try {
+      const img = nativeImage.createFromPath(devIconPath);
+      if (!img.isEmpty()) app.dock.setIcon(img);
+    } catch {}
+  }
   ensureDeviceId();
   createWindow();
   if (store.get(constants.ACCESS_TOKEN_STORE_KEY)) {
@@ -651,6 +721,10 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('before-quit', () => {
+  app.isQuitting = true;
+});
+
 app.on('window-all-closed', () => {
   if (aiagentProcess && !aiagentProcess.killed) {
     kill(aiagentProcess.pid, 'SIGKILL', (err) => {
@@ -658,5 +732,5 @@ app.on('window-all-closed', () => {
       else console.log('[Agent stopped on app exit]');
     });
   }
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin' || app.isQuitting) app.quit();
 });

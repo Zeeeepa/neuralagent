@@ -30,3 +30,5 @@ yarn-error.log*
 /dist
 /build
 /agent_build
+
+/assets/assets/

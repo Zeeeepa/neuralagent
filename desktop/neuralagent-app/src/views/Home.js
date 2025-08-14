@@ -115,13 +115,13 @@ export default function Home() {
             return;
           }
         }
-        setBackgroundMode(backgroundMode || response.data.is_background_mode_requested);
+        setBackgroundMode(process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && (backgroundMode || response.data.is_background_mode_requested));
         setThinkingMode(thinkingMode || response.data.is_extended_thinking_mode_requested);
         window.electronAPI.setLastThinkingModeValue((thinkingMode || response.data.is_extended_thinking_mode_requested).toString());
         window.electronAPI.launchAIAgent(
           process.env.REACT_APP_PROTOCOL + '://' + process.env.REACT_APP_DNS,
           response.data.thread_id,
-          backgroundMode || response.data.is_background_mode_requested
+          process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && (backgroundMode || response.data.is_background_mode_requested)
         );
       }
       navigate('/threads/' + response.data.thread_id);
@@ -211,17 +211,22 @@ export default function Home() {
           onKeyDown={handleTextEnterKey}
         />
         <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
-          <ToggleContainer isDarkMode={isDarkMode}>
-            <ModeToggle
-              active={backgroundMode}
-              isDarkMode={isDarkMode}
-              onClick={() => onBGModeToggleChange(!backgroundMode)}
-            >
-              <MdOutlineSchedule style={{fontSize: '19px'}} />
-              Background
-            </ModeToggle>
-          </ToggleContainer>
-          <div style={{width: '10px'}} />
+          {
+            process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && 
+            <>
+              <ToggleContainer isDarkMode={isDarkMode}>
+                <ModeToggle
+                  active={backgroundMode}
+                  isDarkMode={isDarkMode}
+                  onClick={() => onBGModeToggleChange(!backgroundMode)}
+                >
+                  <MdOutlineSchedule style={{fontSize: '19px'}} />
+                  Background
+                </ModeToggle>
+              </ToggleContainer>
+              <div style={{width: '10px'}} />
+            </>
+          }
           <ToggleContainer isDarkMode={isDarkMode}>
             <ModeToggle
               isDarkMode={isDarkMode}

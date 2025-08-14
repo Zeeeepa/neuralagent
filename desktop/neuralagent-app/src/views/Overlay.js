@@ -210,13 +210,13 @@ export default function Overlay() {
             return;
           }
         }
-        setBackgroundMode(backgroundMode || response.data.is_background_mode_requested);
+        setBackgroundMode(process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && (backgroundMode || response.data.is_background_mode_requested));
         setThinkingMode(thinkingMode || response.data.is_extended_thinking_mode_requested);
         window.electronAPI.setLastThinkingModeValue((thinkingMode || response.data.is_extended_thinking_mode_requested).toString());
         window.electronAPI.launchAIAgent(
           process.env.REACT_APP_PROTOCOL + '://' + process.env.REACT_APP_DNS,
           response.data.thread_id,
-          backgroundMode || response.data.is_background_mode_requested
+          process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && (backgroundMode || response.data.is_background_mode_requested)
         );
         setRunningThreadId(response.data.thread_id);
       }
@@ -301,16 +301,21 @@ export default function Overlay() {
             />
             {!loading && runningThreadId === null && (
               <> 
-                <div style={{width: '5px'}} />
-                <ToggleContainer>
-                  <ModeToggle
-                    active={backgroundMode}
-                    isDarkMode={isDarkMode}
-                    onClick={() => onBGModeToggleChange(!backgroundMode)}
-                  >
-                    <MdOutlineSchedule />
-                  </ModeToggle>
-                </ToggleContainer>
+                {
+                  process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && 
+                  <>
+                    <div style={{width: '5px'}} />
+                    <ToggleContainer>
+                      <ModeToggle
+                        active={backgroundMode}
+                        isDarkMode={isDarkMode}
+                        onClick={() => onBGModeToggleChange(!backgroundMode)}
+                      >
+                        <MdOutlineSchedule />
+                      </ModeToggle>
+                    </ToggleContainer>
+                  </>
+                }
                 <div style={{width: '5px'}} />
                 <ToggleContainer>
                   <ModeToggle

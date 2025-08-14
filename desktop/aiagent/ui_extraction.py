@@ -240,7 +240,7 @@ def extract_ui_elements_macos():
                     elements.append({
                         "type": role.replace('AX', ''),
                         "label": title or value,
-                        "bounding_box": scaled_bounding_rect(x, y, w, h),
+                        "bounding_box": get_bounding_rect(x, y, w, h),
                         "depth": depth
                     })
             except Exception:
