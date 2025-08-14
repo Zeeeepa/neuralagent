@@ -4,6 +4,7 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.prompts import ChatPromptTemplate
 from youtube_transcript_api import YouTubeTranscriptApi
 from . import llm_provider
+import asyncio
 
 
 llm = llm_provider.get_llm(agent='summarizer', temperature=1.0)
@@ -102,3 +103,12 @@ def run_tool_server_side(tool_name: str, args: dict) -> str:
         return summarize_youtube_video(args["url"])
 
     raise ValueError(f"Unsupported tool: {tool_name}")
+
+
+async def run_tool_server_side_async(tool_name: str, args: dict) -> str:
+    """Simple async wrapper using thread pool"""
+    return await asyncio.to_thread(
+        run_tool_server_side,
+        tool_name,
+        args
+    )

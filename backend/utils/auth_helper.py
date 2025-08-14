@@ -1,6 +1,7 @@
 import jwt
 import datetime
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from db.models import User, LoginSession
 from typing import Optional
 from fastapi import status
@@ -13,6 +14,10 @@ import os
 JWT_SECRET = os.getenv('JWT_SECRET')
 JWT_ISS = os.getenv('JWT_ISS')
 JWT_AUDIENCE_CLAIM = 'NeuralAgent'
+
+
+def _to_naive_utc(dt: datetime.datetime) -> datetime.datetime:
+    return dt.astimezone(datetime.UTC).replace(tzinfo=None) if dt.tzinfo else dt 
 
 
 def create_token_from_user(user: User, exp: datetime.datetime, session_id: int, with_refresh: bool = True):
@@ -66,12 +71,12 @@ def decode_token(raw_token: str):
         )
 
 
-def is_session_valid(session_id: int, db_session: Session):
+async def is_session_valid(session_id: int, db_session: AsyncSession):
     """
     Check if a session is valid by querying the database.
     """
     query = select(LoginSession).where(LoginSession.id == session_id)
-    result = db_session.exec(query).first()
+    result = (await db_session.exec(query)).first()
 
     if result and not result.is_logged_out:
         return True
@@ -79,18 +84,18 @@ def is_session_valid(session_id: int, db_session: Session):
     return False
 
 
-def create_login_session(user: User, db_session: Session, expires_at: datetime.datetime, session_type: str = 'windows', notification_token: Optional[str] = None):
+async def create_login_session(user: User, db_session: AsyncSession, expires_at: datetime.datetime, session_type: str = 'windows', notification_token: Optional[str] = None):
     """
     Create a new login session in the database.
     """
     session = LoginSession(
         user_id=user.id,
-        expires_at=expires_at,
+        expires_at=_to_naive_utc(expires_at),
         notification_token=notification_token,
-        refresh_expires_at=datetime.datetime.now(datetime.UTC) + constants.REFRESH_TOKEN_LIFETIME_DELTA,
+        refresh_expires_at=_to_naive_utc(datetime.datetime.now(datetime.UTC) + constants.REFRESH_TOKEN_LIFETIME_DELTA),
         login_session_type=session_type,
     )
     db_session.add(session)
-    db_session.commit()
-    db_session.refresh(session)
+    await db_session.commit()
+    await db_session.refresh(session)
     return session

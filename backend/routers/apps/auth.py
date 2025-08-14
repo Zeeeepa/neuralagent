@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from sqlmodel import Session, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from db.models import User, UserType, LoginSession
 from schemas.auth import UserInfo, UserCreate, UserAuth, Logout, RefreshToken, LoginWithGoogle
-from db.database import get_session
+from db.database import get_async_session
 from utils.security import verify_password, hash_password
 from utils.auth_helper import create_login_session, create_token_from_user, decode_token, is_session_valid
 import datetime
@@ -17,10 +18,10 @@ router = APIRouter(prefix='/apps/auth', tags=['auth'])
 
 
 @router.post('/login')
-def login_with_email(user_auth: UserAuth, db: Session = Depends(get_session)):
+async def login_with_email(user_auth: UserAuth, db: AsyncSession = Depends(get_async_session)):
 
     query = select(User).where(User.email == user_auth.email)
-    user = db.exec(query).first()
+    user = (await db.exec(query)).first()
 
     if not user or not user.password or not verify_password(user_auth.password, user.password) or user.user_type != UserType.NORMAL_USER:
         raise CustomError(
@@ -35,7 +36,7 @@ def login_with_email(user_auth: UserAuth, db: Session = Depends(get_session)):
         )
 
     exp = datetime.datetime.now(datetime.UTC) + constants.ACCESS_TOKEN_LIFETIME_DELTA
-    login_session = create_login_session(user, db, exp, user_auth.login_session_type)
+    login_session = await create_login_session(user, db, exp, user_auth.login_session_type)
     token, refresh_token = create_token_from_user(user, exp, login_session.id)
 
     user_data = UserInfo(
@@ -54,7 +55,7 @@ def login_with_email(user_auth: UserAuth, db: Session = Depends(get_session)):
 
 
 @router.post('/login_google_desktop')
-def login_with_google_desktop(login_google_obj: LoginWithGoogle, db: Session = Depends(get_session)):
+async def login_with_google_desktop(login_google_obj: LoginWithGoogle, db: AsyncSession = Depends(get_async_session)):
     try:
         token_res = requests.post(
             "https://oauth2.googleapis.com/token",
@@ -89,17 +90,17 @@ def login_with_google_desktop(login_google_obj: LoginWithGoogle, db: Session = D
         name = google_user['name']
         email = google_user['email']
 
-        user = db.exec(select(User).where(User.google_user_id == sub)).first()
+        user = (await db.exec(select(User).where(User.google_user_id == sub))).first()
         if not user:
-            user = db.exec(select(User).where(User.email == email)).first()
+            user = (await db.exec(select(User).where(User.email == email))).first()
             if user:
                 user.google_user_id = sub
                 user.google_token = access_token
                 user.is_email_verified = True
 
                 db.add(user)
-                db.commit()
-                db.refresh(user)
+                await db.commit()
+                await db.refresh(user)
             else:
                 user = User(
                     name=name,
@@ -109,11 +110,11 @@ def login_with_google_desktop(login_google_obj: LoginWithGoogle, db: Session = D
                     is_email_verified=True
                 )
                 db.add(user)
-                db.commit()
-                db.refresh(user)
+                await db.commit()
+                await db.refresh(user)
 
         exp = datetime.datetime.now(datetime.UTC) + constants.ACCESS_TOKEN_LIFETIME_DELTA
-        login_session = create_login_session(user, db, exp, login_google_obj.login_session_type)
+        login_session = await create_login_session(user, db, exp, login_google_obj.login_session_type)
         token, refresh_token = create_token_from_user(user, exp, login_session.id)
 
         user_data = UserInfo(
@@ -135,7 +136,7 @@ def login_with_google_desktop(login_google_obj: LoginWithGoogle, db: Session = D
 
 
 @router.get('/user_info')
-def user_info(db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
+async def user_info(db: AsyncSession = Depends(get_async_session), user: User = Depends(get_current_user_dependency)):
     user_data = UserInfo(
         id=user.id,
         name=user.name,
@@ -148,10 +149,10 @@ def user_info(db: Session = Depends(get_session), user: User = Depends(get_curre
 
 
 @router.post('/signup')
-def signup(user_create: UserCreate, db: Session = Depends(get_session)):
+async def signup(user_create: UserCreate, db: AsyncSession = Depends(get_async_session)):
 
     query = select(User).where(User.email == user_create.email)
-    existing_user = db.exec(query).first()
+    existing_user = (await db.exec(query)).first()
 
     if existing_user:
         raise CustomError(
@@ -170,7 +171,7 @@ def signup(user_create: UserCreate, db: Session = Depends(get_session)):
     db.refresh(new_user)
 
     exp = datetime.datetime.now(datetime.UTC) + constants.ACCESS_TOKEN_LIFETIME_DELTA
-    login_session = create_login_session(new_user, db, exp, user_create.login_session_type)
+    login_session = await create_login_session(new_user, db, exp, user_create.login_session_type)
     token, refresh_token = create_token_from_user(new_user, exp, login_session.id)
 
     user_data = UserInfo(
@@ -191,7 +192,7 @@ def signup(user_create: UserCreate, db: Session = Depends(get_session)):
 
 
 @router.post('/logout')
-def logout(logout_obj: Logout, db: Session = Depends(get_session)):
+async def logout(logout_obj: Logout, db: AsyncSession = Depends(get_async_session)):
     payload = decode_token(logout_obj.access_token)
 
     if payload.get('token_type') != 'access':
@@ -201,12 +202,12 @@ def logout(logout_obj: Logout, db: Session = Depends(get_session)):
         raise CustomError(status.HTTP_401_UNAUTHORIZED, 'Invalid_Token')
 
     query = select(LoginSession).where(LoginSession.id == payload.get('session_id'))
-    login_session = db.exec(query).first()
+    login_session = (await db.exec(query)).first()
 
     login_session.is_logged_out = True
     db.add(login_session)
-    db.commit()
-    db.refresh(login_session)
+    await db.commit()
+    await db.refresh(login_session)
 
     return {
         'message': 'Success'
@@ -214,7 +215,7 @@ def logout(logout_obj: Logout, db: Session = Depends(get_session)):
 
 
 @router.post('/refresh_token')
-def refresh_current_token(refresh_obj: RefreshToken, db: Session = Depends(get_session)):
+async def refresh_current_token(refresh_obj: RefreshToken, db: AsyncSession = Depends(get_async_session)):
     payload = decode_token(refresh_obj.refresh_token)
 
     if payload.get('token_type') != 'refresh':
@@ -224,29 +225,29 @@ def refresh_current_token(refresh_obj: RefreshToken, db: Session = Depends(get_s
         raise CustomError(status.HTTP_401_UNAUTHORIZED, 'Invalid_Token')
 
     u_query = select(User).where(User.id == payload.get('user_id'))
-    user = db.exec(u_query).first()
+    user = (await db.exec(u_query)).first()
 
     if not user:
         raise CustomError(status_code=status.HTTP_401_UNAUTHORIZED, message='Invalid_Token')
 
     s_query = select(LoginSession).where(LoginSession.id == payload.get('session_id'))
-    login_session = db.exec(s_query).first()
+    login_session = (await db.exec(s_query)).first()
 
     exp = payload.get('exp')
-    dif = datetime.datetime.fromtimestamp(exp) - datetime.datetime.now()
+    dif = datetime.datetime.fromtimestamp(exp, tz=datetime.UTC) - datetime.datetime.now(datetime.UTC)
     with_refresh = dif <= datetime.timedelta(hours=1)
 
     exp = datetime.datetime.now(datetime.UTC) + constants.ACCESS_TOKEN_LIFETIME_DELTA
 
     new_token, new_refresh = create_token_from_user(user, exp, login_session.id, with_refresh)
 
-    login_session.expires_at = exp
+    login_session.expires_at = exp.astimezone(datetime.UTC).replace(tzinfo=None)
     if with_refresh:
-        login_session.refresh_expires_at = datetime.datetime.now(datetime.UTC) + constants.REFRESH_TOKEN_LIFETIME_DELTA
+        login_session.refresh_expires_at = (datetime.datetime.now(datetime.UTC) + constants.REFRESH_TOKEN_LIFETIME_DELTA).astimezone(datetime.UTC).replace(tzinfo=None)
 
     db.add(login_session)
-    db.commit()
-    db.refresh(login_session)
+    await db.commit()
+    await db.refresh(login_session)
 
     return {
         'new_token': new_token,

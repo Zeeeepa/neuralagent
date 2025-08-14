@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select, and_
-from db.database import get_session
+from sqlmodel import select, and_
+from sqlmodel.ext.asyncio.session import AsyncSession
+from db.database import get_async_session
 import os
 from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate
@@ -12,6 +13,7 @@ from dependencies.auth_dependencies import get_current_user_dependency
 from db.models import (User, Thread, ThreadStatus, ThreadTask)
 from schemas.aiagent import SuggestorRequest
 from utils import llm_provider
+import datetime
 
 
 router = APIRouter(
@@ -22,18 +24,22 @@ router = APIRouter(
 
 
 @router.post('')
-def get_suggestions(request: SuggestorRequest, db: Session = Depends(get_session),
+async def get_suggestions(request: SuggestorRequest, db: AsyncSession = Depends(get_async_session),
                     user: User = Depends(get_current_user_dependency)):
     prompt_blocks = [
         {"type": "text", "text": f"Current OS: {request.current_os}"},
         {"type": "text", "text": f"Current Visible UI Elements: {json.dumps(request.current_interactive_elements)}"},
         {"type": "text", "text": f"Current Running Apps: {json.dumps(request.current_running_apps)}"},
+        {
+            'type': 'text',
+            'text': f"Today's date: {datetime.datetime.now().strftime('%Y-%m-%d')}"
+        },
     ]
 
-    most_recent_tasks = db.exec(select(ThreadTask).where(and_(
+    most_recent_tasks = (await db.exec(select(ThreadTask).where(and_(
         ThreadTask.thread.has(Thread.user_id == user.id),
         ThreadTask.thread.has(Thread.status != ThreadStatus.DELETED),
-    )).order_by(ThreadTask.created_at.desc()).limit(20)).all()
+    )).order_by(ThreadTask.created_at.desc()).limit(20))).all()
     most_recent_tasks_arr = []
     for recent_task in most_recent_tasks:
         most_recent_tasks_arr.append({
@@ -71,7 +77,7 @@ def get_suggestions(request: SuggestorRequest, db: Session = Depends(get_session
     ])
 
     chain = prompt | llm
-    response = chain.invoke({})
+    response = await chain.ainvoke({})
 
     response_data = extract_json(response.content)
 

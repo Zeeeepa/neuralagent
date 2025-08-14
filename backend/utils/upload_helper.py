@@ -4,6 +4,7 @@ import os
 from .procedures import generate_random_string
 from PIL import Image
 import io
+import asyncio
 
 
 def upload_file_s3(file):
@@ -39,6 +40,18 @@ def upload_screenshot_s3_bytesio(buffer: io.BytesIO, extension="png"):
         return filepath
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload to S3: {e}")
+
+
+async def upload_screenshot_s3_bytesio_async(buffer: io.BytesIO, extension="png"):
+    """
+    Async wrapper for the synchronous upload function using thread pool
+    """
+    # Run the synchronous function in a thread pool
+    return await asyncio.to_thread(
+        upload_screenshot_s3_bytesio,
+        buffer,
+        extension
+    )
 
 
 def generate_thumbnail(image_data, size):

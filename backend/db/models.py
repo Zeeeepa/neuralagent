@@ -92,8 +92,8 @@ class Thread(SQLModel, table=True):
                                                     sa_column_kwargs={'onupdate': datetime.datetime.now})
 
     user: Optional['User'] = Relationship(back_populates='threads')
-    thread_tasks: List['ThreadTask'] = Relationship(back_populates='thread')
-    thread_messages: List['ThreadMessage'] = Relationship(back_populates='thread')
+    thread_tasks: List['ThreadTask'] = Relationship(back_populates='thread', sa_relationship_kwargs={'lazy': 'selectin'})
+    thread_messages: List['ThreadMessage'] = Relationship(back_populates='thread', sa_relationship_kwargs={'lazy': 'selectin'})
 
 
 class ThreadTaskStatus(str, Enum):
@@ -229,5 +229,5 @@ class ThreadMessage(SQLModel, table=True):
                                                     sa_column_kwargs={'onupdate': datetime.datetime.now})
 
     thread: Optional['Thread'] = Relationship(back_populates='thread_messages')
-    thread_task: Optional['ThreadTask'] = Relationship(back_populates='thread_task_messages')
+    thread_task: Optional['ThreadTask'] = Relationship(back_populates='thread_task_messages', sa_relationship_kwargs={'lazy': 'selectin'})
     plan_subtask: Optional['PlanSubtask'] = Relationship(back_populates='plan_subtask_messages')

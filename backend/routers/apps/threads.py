@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, status
-from sqlmodel import Session, select, and_, update
+from sqlmodel import select, and_, update
+from sqlmodel.ext.asyncio.session import AsyncSession
 from dependencies.auth_dependencies import get_current_user_dependency
-from db.database import get_session
+from db.database import get_async_session
 from db.models import (User, Thread, ThreadStatus, ThreadTask, ThreadMessage, ThreadChatType, ThreadChatFromChoices,
                        ThreadTaskStatus, ThreadTaskPlan, ThreadTaskPlanStatus, PlanSubtask, SubtaskStatus)
 from schemas.threads import ListThread, CreateThread, UpdateThread, ListThreadMessage, RetrieveThread, SendMessageObj
@@ -12,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from utils import ai_prompts, llm_provider
 import json
+import datetime
 
 
 router = APIRouter(
@@ -22,31 +24,37 @@ router = APIRouter(
 
 
 @router.get('', response_model=List[ListThread])
-def list_threads(db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    query = select(Thread).where(and_(
+async def list_threads(db: AsyncSession = Depends(get_async_session), 
+                       user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.user_id == user.id,
         Thread.status != ThreadStatus.DELETED
-    )).order_by(Thread.created_at.desc())
-    return db.exec(query)
+    )).order_by(Thread.created_at.desc()))
+    return result.all()
 
 
 @router.post('')
-def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_session),
-                  user: User = Depends(get_current_user_dependency)):
+async def create_thread(create_thread_obj: CreateThread, 
+                       db: AsyncSession = Depends(get_async_session),
+                       user: User = Depends(get_current_user_dependency)):
 
-    working_threads = db.exec(select(Thread).where(and_(
+    result = await db.exec(select(Thread).where(and_(
         Thread.user_id == user.id,
         Thread.status == ThreadStatus.WORKING
     )))
-    if len(working_threads.all()) > 0:
+    working_threads = result.all()
+    
+    if len(working_threads) > 0:
         raise CustomError(status.HTTP_400_BAD_REQUEST, 'Running_Thread')
 
     llm = llm_provider.get_llm(agent='classifier', temperature=0.1)
 
-    previous_tasks = db.exec(select(ThreadTask).where(and_(
+    result = await db.exec(select(ThreadTask).where(and_(
         ThreadTask.thread.has(Thread.user_id == user.id),
         ThreadTask.thread.has(Thread.status != ThreadStatus.DELETED),
-    )).order_by(ThreadTask.created_at.desc()).limit(10)).all()
+    )).order_by(ThreadTask.created_at.desc()).limit(10))
+    previous_tasks = result.all()
+    
     previous_tasks_arr = []
     for previous_task in previous_tasks:
         previous_tasks_arr.append({
@@ -56,13 +64,13 @@ def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_ses
 
     prompt = ChatPromptTemplate.from_messages([
         ('system', ai_prompts.CLASSIFIER_AGENT_PROMPT),
-        HumanMessage(f'Previous Tasks (Limited to 10): \n {json.dumps(previous_tasks_arr)}'),
+        HumanMessage(f'Previous Tasks (Limited to 10): \n {json.dumps(previous_tasks_arr)} \n{f"Today's date: {datetime.datetime.now().strftime('%Y-%m-%d')}"}'),
         ('user', create_thread_obj.task),
     ])
 
     chain = prompt | llm
 
-    response = chain.invoke({})
+    response = await chain.ainvoke({})
     response_data = extract_json(response.content)
 
     if response_data.get('type') == 'desktop_task':
@@ -71,13 +79,13 @@ def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_ses
                 raise CustomError(status.HTTP_400_BAD_REQUEST, 'Not_Browser_Task_BG_Mode')
 
     instance = Thread(
-        title=ai_helpers.generate_thread_title(create_thread_obj.task),
+        title=await ai_helpers.generate_thread_title(create_thread_obj.task),
         user_id=user.id,
         current_task=create_thread_obj.task,
     )
     db.add(instance)
-    db.commit()
-    db.refresh(instance)
+    await db.commit()
+    await db.refresh(instance)
 
     user_message = ThreadMessage(
         thread_id=instance.id,
@@ -86,8 +94,8 @@ def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_ses
         text=create_thread_obj.task,
     )
     db.add(user_message)
-    db.commit()
-    db.refresh(user_message)
+    await db.commit()
+    await db.refresh(user_message)
 
     response_data['thread_id'] = instance.id
 
@@ -100,8 +108,8 @@ def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_ses
             extended_thinking_mode=create_thread_obj.extended_thinking_mode or response_data.get('is_extended_thinking_mode_requested', False),
         )
         db.add(thread_task)
-        db.commit()
-        db.refresh(thread_task)
+        await db.commit()
+        await db.refresh(thread_task)
 
         ai_message = ThreadMessage(
             thread_id=instance.id,
@@ -110,13 +118,13 @@ def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_ses
             text=json.dumps(response_data),
         )
         db.add(ai_message)
-        db.commit()
-        db.refresh(ai_message)
+        await db.commit()
+        await db.refresh(ai_message)
 
         instance.status = ThreadStatus.WORKING
         db.add(instance)
-        db.commit()
-        db.refresh(instance)
+        await db.commit()
+        await db.refresh(instance)
 
         return response_data
     else:
@@ -127,38 +135,44 @@ def create_thread(create_thread_obj: CreateThread, db: Session = Depends(get_ses
             text=json.dumps(response_data),
         )
         db.add(ai_message)
-        db.commit()
-        db.refresh(ai_message)
+        await db.commit()
+        await db.refresh(ai_message)
 
         return response_data
 
 
 @router.put('/{tid}')
-def update_thread(tid: str, update_obj: UpdateThread, db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def update_thread(tid: str, update_obj: UpdateThread, 
+                       db: AsyncSession = Depends(get_async_session), 
+                       user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status != ThreadStatus.DELETED
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
 
     instance.title = update_obj.title
     db.add(instance)
-    db.commit()
-    db.refresh(instance)
+    await db.commit()
+    await db.refresh(instance)
 
     return {'message': 'Success'}
 
 
 @router.delete('/{tid}')
-def delete_thread(tid: str, db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def delete_thread(tid: str, 
+                       db: AsyncSession = Depends(get_async_session), 
+                       user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status != ThreadStatus.DELETED
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
@@ -168,19 +182,22 @@ def delete_thread(tid: str, db: Session = Depends(get_session), user: User = Dep
 
     instance.status = ThreadStatus.DELETED
     db.add(instance)
-    db.commit()
-    db.refresh(instance)
+    await db.commit()
+    await db.refresh(instance)
 
     return {'message': 'Success'}
 
 
 @router.get('/{tid}', response_model=RetrieveThread)
-def retrieve_thread(tid: str, db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def retrieve_thread(tid: str, 
+                         db: AsyncSession = Depends(get_async_session), 
+                         user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status != ThreadStatus.DELETED
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
@@ -189,44 +206,50 @@ def retrieve_thread(tid: str, db: Session = Depends(get_session), user: User = D
 
 
 @router.get('/{tid}/thread_messages', response_model=List[ListThreadMessage])
-def thread_messages(tid: str, db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    query = select(ThreadMessage).where(and_(
+async def thread_messages(tid: str, 
+                         db: AsyncSession = Depends(get_async_session), 
+                         user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(ThreadMessage).where(and_(
         ThreadMessage.thread_id == tid,
         ThreadMessage.thread.has(Thread.user_id == user.id),
-    )).order_by(ThreadMessage.created_at.asc())
-    return db.exec(query)
+    )).order_by(ThreadMessage.created_at.asc()))
+    return result.all()
 
 
 @router.post('/cancel_all_running_tasks')
-def cancel_all_running_tasks(db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    db.exec(update(Thread).where(Thread.status == ThreadStatus.WORKING).values(
+async def cancel_all_running_tasks(db: AsyncSession = Depends(get_async_session), 
+                                   user: User = Depends(get_current_user_dependency)):
+    await db.exec(update(Thread).where(Thread.status == ThreadStatus.WORKING).values(
         status=ThreadStatus.STANDBY,
     ))
 
-    db.exec(update(ThreadTask).where(ThreadTask.status == ThreadTaskStatus.WORKING).values(
+    await db.exec(update(ThreadTask).where(ThreadTask.status == ThreadTaskStatus.WORKING).values(
         status=ThreadTaskStatus.CANCELED,
     ))
 
-    db.exec(update(ThreadTaskPlan).where(ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE).values(
+    await db.exec(update(ThreadTaskPlan).where(ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE).values(
         status=ThreadTaskPlanStatus.CANCELED,
     ))
 
-    db.exec(update(PlanSubtask).where(PlanSubtask.status == SubtaskStatus.ACTIVE).values(
+    await db.exec(update(PlanSubtask).where(PlanSubtask.status == SubtaskStatus.ACTIVE).values(
         status=SubtaskStatus.CANCELED,
     ))
 
-    db.commit()
+    await db.commit()
 
     return {'message': 'Success'}
 
 
 @router.post('/{tid}/cancel_task')
-def cancel_running_task(tid: str, db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def cancel_running_task(tid: str, 
+                              db: AsyncSession = Depends(get_async_session), 
+                              user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status != ThreadStatus.DELETED
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
@@ -236,25 +259,26 @@ def cancel_running_task(tid: str, db: Session = Depends(get_session), user: User
 
     instance.status = ThreadStatus.STANDBY
     db.add(instance)
-    db.commit()
-    db.refresh(instance)
+    await db.commit()
+    await db.refresh(instance)
 
-    running_task = db.exec(select(ThreadTask).where(and_(
+    result = await db.exec(select(ThreadTask).where(and_(
         ThreadTask.thread_id == tid,
         ThreadTask.status == ThreadTaskStatus.WORKING
-    ))).first()
+    )))
+    running_task = result.first()
 
     if running_task:
         running_task.status = ThreadTaskStatus.CANCELED
         db.add(running_task)
-        db.commit()
-        db.refresh(running_task)
+        await db.commit()
+        await db.refresh(running_task)
 
-        db.exec(update(ThreadTaskPlan).where(ThreadTaskPlan.thread_task_id == running_task.id).values(
+        await db.exec(update(ThreadTaskPlan).where(ThreadTaskPlan.thread_task_id == running_task.id).values(
             status=ThreadTaskPlanStatus.CANCELED,
         ))
 
-        db.exec(update(PlanSubtask).where(PlanSubtask.plan.has(ThreadTaskPlan.thread_task_id == running_task.id)).values(
+        await db.exec(update(PlanSubtask).where(PlanSubtask.plan.has(ThreadTaskPlan.thread_task_id == running_task.id)).values(
             status=SubtaskStatus.CANCELED,
         ))
 
@@ -266,37 +290,43 @@ def cancel_running_task(tid: str, db: Session = Depends(get_session), user: User
         text=json.dumps({'actions': [{'action': 'task_canceled'}]}),
     )
     db.add(ai_message)
-    db.commit()
-    db.refresh(ai_message)
+    await db.commit()
+    await db.refresh(ai_message)
 
     return {'message': 'Success'}
 
 
 @router.post('/{tid}/send_message')
-def send_message(tid: str, obj: SendMessageObj, db: Session = Depends(get_session),
-                 user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def send_message(tid: str, obj: SendMessageObj, 
+                      db: AsyncSession = Depends(get_async_session),
+                      user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status != ThreadStatus.DELETED
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
 
-    working_threads = db.exec(select(Thread).where(and_(
+    result = await db.exec(select(Thread).where(and_(
         Thread.user_id == user.id,
         Thread.status == ThreadStatus.WORKING
     )))
-    if len(working_threads.all()) > 0:
+    working_threads = result.all()
+    
+    if len(working_threads) > 0:
         raise CustomError(status.HTTP_400_BAD_REQUEST, 'Running_Thread')
 
     llm = llm_provider.get_llm(agent='classifier', temperature=0.1)
 
-    previous_tasks = db.exec(select(ThreadTask).where(and_(
+    result = await db.exec(select(ThreadTask).where(and_(
         ThreadTask.thread.has(Thread.user_id == user.id),
         ThreadTask.thread.has(Thread.status != ThreadStatus.DELETED),
-    )).order_by(ThreadTask.created_at.desc()).limit(10)).all()
+    )).order_by(ThreadTask.created_at.desc()).limit(10))
+    previous_tasks = result.all()
+    
     previous_tasks_arr = []
     for previous_task in previous_tasks:
         previous_tasks_arr.append({
@@ -312,7 +342,7 @@ def send_message(tid: str, obj: SendMessageObj, db: Session = Depends(get_sessio
 
     chain = prompt | llm
 
-    response = chain.invoke({})
+    response = await chain.ainvoke({})
     response_data = extract_json(response.content)
 
     if response_data.get('type') == 'desktop_task':
@@ -327,8 +357,8 @@ def send_message(tid: str, obj: SendMessageObj, db: Session = Depends(get_sessio
         text=obj.text,
     )
     db.add(user_message)
-    db.commit()
-    db.refresh(user_message)
+    await db.commit()
+    await db.refresh(user_message)
 
     if response_data.get('type') == 'desktop_task':
         thread_task = ThreadTask(
@@ -339,8 +369,8 @@ def send_message(tid: str, obj: SendMessageObj, db: Session = Depends(get_sessio
             extended_thinking_mode=obj.extended_thinking_mode or response_data.get('is_extended_thinking_mode_requested', False),
         )
         db.add(thread_task)
-        db.commit()
-        db.refresh(thread_task)
+        await db.commit()
+        await db.refresh(thread_task)
 
         ai_message = ThreadMessage(
             thread_id=instance.id,
@@ -349,13 +379,13 @@ def send_message(tid: str, obj: SendMessageObj, db: Session = Depends(get_sessio
             text=json.dumps(response_data),
         )
         db.add(ai_message)
-        db.commit()
-        db.refresh(ai_message)
+        await db.commit()
+        await db.refresh(ai_message)
 
         instance.status = ThreadStatus.WORKING
         db.add(instance)
-        db.commit()
-        db.refresh(instance)
+        await db.commit()
+        await db.refresh(instance)
 
         return response_data
     else:
@@ -366,7 +396,7 @@ def send_message(tid: str, obj: SendMessageObj, db: Session = Depends(get_sessio
             text=json.dumps(response_data),
         )
         db.add(ai_message)
-        db.commit()
-        db.refresh(ai_message)
+        await db.commit()
+        await db.refresh(ai_message)
 
         return response_data

@@ -4,7 +4,7 @@ import json
 from utils import llm_provider
 
 
-def generate_thread_title(task):
+async def generate_thread_title(task):
     llm = llm_provider.get_llm(agent='title', temperature=1.0)
 
     prompt = ChatPromptTemplate.from_messages([
@@ -14,7 +14,7 @@ def generate_thread_title(task):
 
     chain = prompt | llm
 
-    response = chain.invoke({'task': task})
+    response = await chain.ainvoke({'task': task})
 
     try:
         response_data = json.loads(response.content.split('```json')[1].split('```')[0])

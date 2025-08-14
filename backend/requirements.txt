@@ -5,7 +5,9 @@ sqlmodel
 pydantic
 alembic
 sqlalchemy
+sqlalchemy[asyncio]
 psycopg2
+asyncpg
 passlib
 bcrypt
 pyjwt

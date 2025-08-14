@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, status
-from sqlmodel import Session, select, and_
-from db.database import get_session
+from sqlmodel import select, and_
+from sqlmodel.ext.asyncio.session import AsyncSession
+from db.database import get_async_session
 from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -16,12 +17,13 @@ from db.models import (User, Thread, ThreadStatus, ThreadTask, ThreadTaskStatus,
                        ThreadChatType, ThreadChatFromChoices, ThreadTaskPlan, ThreadTaskPlanStatus,
                        PlanSubtask, SubtaskStatus, ThreadTaskMemoryEntry, SubtaskType)
 from schemas.aiagent import NextStepRequest, CurrentSubtaskRequestObj
-from utils.agentic_tools import run_tool_server_side
+from utils.agentic_tools import run_tool_server_side_async
 from utils import llm_provider
 from base64 import b64decode
 import io
 import os
 from utils import upload_helper
+import datetime
 
 
 router = APIRouter(
@@ -32,36 +34,42 @@ router = APIRouter(
 
 
 @router.post('/{tid}/current_subtask')
-def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtaskRequestObj,
-                            db: Session = Depends(get_session), user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtaskRequestObj,
+                            db: AsyncSession = Depends(get_async_session), 
+                            user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status == ThreadStatus.WORKING
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
 
-    task = db.exec(select(ThreadTask).where(and_(
+    result = await db.exec(select(ThreadTask).where(and_(
         ThreadTask.thread_id == tid,
         ThreadTask.status == ThreadTaskStatus.WORKING,
-    ))).first()
+    )))
+    task = result.first()
 
     if not task:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread has no running task')
 
-    current_plan = db.exec(select(ThreadTaskPlan).where(and_(
+    result = await db.exec(select(ThreadTaskPlan).where(and_(
         ThreadTaskPlan.thread_task_id == task.id,
         ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE,
-    ))).first()
+    )))
+    current_plan = result.first()
 
     if not current_plan:
-        previous_tasks = db.exec(select(ThreadTask).where(and_(
+        result = await db.exec(select(ThreadTask).where(and_(
             ThreadTask.thread.has(Thread.user_id == user.id),
             ThreadTask.thread.has(Thread.status != ThreadStatus.DELETED),
             ThreadTask.status != ThreadTaskStatus.WORKING,
-        )).order_by(ThreadTask.created_at.desc()).limit(10)).all()
+        )).order_by(ThreadTask.created_at.desc()).limit(10))
+        previous_tasks = result.all()
+        
         previous_tasks_arr = []
         for previous_task in previous_tasks:
             previous_tasks_arr.append({
@@ -99,7 +107,7 @@ def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtas
         ])
 
         chain = plan_prompt | llm
-        plan_response = chain.invoke({})
+        plan_response = await chain.ainvoke({})
         plan_response_data = extract_json(plan_response.content)
 
         plan = plan_response_data.get('subtasks')
@@ -111,15 +119,15 @@ def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtas
             text=json.dumps(plan_response_data),
         )
         db.add(plan_ai_message)
-        db.commit()
-        db.refresh(plan_ai_message)
+        await db.commit()
+        await db.refresh(plan_ai_message)
 
         current_plan = ThreadTaskPlan(
             thread_task_id=task.id,
         )
         db.add(current_plan)
-        db.commit()
-        db.refresh(current_plan)
+        await db.commit()
+        await db.refresh(current_plan)
 
         for i, subtask_item in enumerate(plan):
             subtask = PlanSubtask(
@@ -131,29 +139,30 @@ def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtas
                 ordering=i + 1,
             )
             db.add(subtask)
-            db.commit()
-            db.refresh(subtask)
+            await db.commit()
+            await db.refresh(subtask)
 
-    current_subtask = db.exec(select(PlanSubtask).where(and_(
+    result = await db.exec(select(PlanSubtask).where(and_(
         PlanSubtask.status == SubtaskStatus.ACTIVE,
         PlanSubtask.thread_task_plan_id == current_plan.id
-    )).order_by(PlanSubtask.ordering.asc())).first()
+    )).order_by(PlanSubtask.ordering.asc()))
+    current_subtask = result.first()
 
     if not current_subtask:
         current_plan.status = ThreadTaskPlanStatus.COMPLETED
         db.add(current_plan)
-        db.commit()
-        db.refresh(current_plan)
+        await db.commit()
+        await db.refresh(current_plan)
 
         task.status = ThreadTaskStatus.COMPLETED
         db.add(task)
-        db.commit()
-        db.refresh(task)
+        await db.commit()
+        await db.refresh(task)
 
         instance.status = ThreadStatus.STANDBY
         db.add(instance)
-        db.commit()
-        db.refresh(instance)
+        await db.commit()
+        await db.refresh(instance)
 
         ai_message = ThreadMessage(
             thread_id=instance.id,
@@ -163,8 +172,8 @@ def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtas
             text=json.dumps({'actions': [{'action': 'task_completed'}]}),
         )
         db.add(ai_message)
-        db.commit()
-        db.refresh(ai_message)
+        await db.commit()
+        await db.refresh(ai_message)
 
         return {'action': 'task_completed'}
 
@@ -177,34 +186,40 @@ def current_subtask_request(tid: str, current_subtask_request_obj: CurrentSubtas
 
 
 @router.post('/{tid}/next_step')
-def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(get_session),
-              user: User = Depends(get_current_user_dependency)):
-    instance = db.exec(select(Thread).where(and_(
+async def next_step(tid: str, next_step_req: NextStepRequest, 
+                    db: AsyncSession = Depends(get_async_session),
+                    user: User = Depends(get_current_user_dependency)):
+    result = await db.exec(select(Thread).where(and_(
         Thread.id == tid,
         Thread.user_id == user.id,
         Thread.status == ThreadStatus.WORKING
-    ))).first()
+    )))
+    instance = result.first()
 
     if not instance:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread not found')
 
-    task = db.exec(select(ThreadTask).where(and_(
+    result = await db.exec(select(ThreadTask).where(and_(
         ThreadTask.thread_id == tid,
         ThreadTask.status == ThreadTaskStatus.WORKING,
-    ))).first()
+    )))
+    task = result.first()
 
     if not task:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'Thread has no running task')
 
-    current_plan = db.exec(select(ThreadTaskPlan).where(and_(
+    result = await db.exec(select(ThreadTaskPlan).where(and_(
         ThreadTaskPlan.thread_task_id == task.id,
         ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE,
-    ))).first()
+    )))
+    current_plan = result.first()
 
-    current_subtask = db.exec(select(PlanSubtask).where(and_(
+    result = await db.exec(select(PlanSubtask).where(and_(
         PlanSubtask.status == SubtaskStatus.ACTIVE,
         PlanSubtask.thread_task_plan_id == current_plan.id
-    )).order_by(PlanSubtask.ordering.asc())).first()
+    )).order_by(PlanSubtask.ordering.asc()))
+    current_subtask = result.first()
+    
     if not current_subtask or current_subtask.subtask_type != SubtaskType.DESKTOP:
         raise CustomError(status.HTTP_404_NOT_FOUND, 'No Current Desktop Task!')
 
@@ -213,10 +228,12 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
     else:
         llm = llm_provider.get_llm(agent='computer_use', temperature=0.0)
 
-    previous_subtasks = db.exec(select(PlanSubtask).where(and_(
+    result = await db.exec(select(PlanSubtask).where(and_(
         PlanSubtask.status != SubtaskStatus.ACTIVE,
         PlanSubtask.plan.has(ThreadTaskPlan.thread_task_id == task.id)
-    )).order_by(PlanSubtask.ordering.asc())).all()
+    )).order_by(PlanSubtask.ordering.asc()))
+    previous_subtasks = result.all()
+    
     previous_subtasks_arr = []
     for previous_subtask in previous_subtasks:
         previous_subtasks_arr.append({
@@ -230,7 +247,7 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
         if os.getenv('ENABLE_SCREENSHOT_LOGGING_FOR_TRAINING') == 'true':
             image_bytes = b64decode(next_step_req.screenshot_b64)
             image_io = io.BytesIO(image_bytes)
-            screenshot_s3_path = upload_helper.upload_screenshot_s3_bytesio(image_io, extension="png")
+            screenshot_s3_path = await upload_helper.upload_screenshot_s3_bytesio_async(image_io, extension="png")
         
         if os.getenv('COMPUTER_USE_AGENT_MODEL_TYPE') == 'ollama' or os.getenv('COMPUTER_USE_AGENT_MODEL_TYPE') == 'gemini':
             screenshot_user_message_block = {
@@ -248,7 +265,7 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
             }
 
     action_history = []
-    task_previous_messages = db.exec(
+    result = await db.exec(
         select(ThreadMessage)
         .where(
             and_(
@@ -258,27 +275,33 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
         )
         .order_by(ThreadMessage.created_at.desc())
         .limit(5)
-    ).all()
+    )
+    task_previous_messages = result.all()
+    
     for previous_message in task_previous_messages:
         previous_action_dict = json.loads(previous_message.text)
         # previous_action_dict.pop("current_state", None)
         action_history.append(previous_action_dict)
 
     if task.needs_memory_from_previous_tasks is True:
-        tasks_for_memory = db.exec(select(ThreadTask).where(and_(
+        result = await db.exec(select(ThreadTask).where(and_(
             ThreadTask.thread.has(Thread.user_id == user.id),
             ThreadTask.thread.has(Thread.status != ThreadStatus.DELETED),
-        )).order_by(ThreadTask.created_at.desc()).limit(5)).all()
+        )).order_by(ThreadTask.created_at.desc()).limit(5))
+        tasks_for_memory = result.all()
+        
         tasks_for_memory_ids = [task.id for task in tasks_for_memory]
-        memory_items = db.exec(
+        result = await db.exec(
             select(ThreadTaskMemoryEntry).where(
                 ThreadTaskMemoryEntry.thread_task_id.in_(tasks_for_memory_ids)
             )
-        ).all()
+        )
+        memory_items = result.all()
     else:
-        memory_items = db.exec(select(ThreadTaskMemoryEntry).where(
+        result = await db.exec(select(ThreadTaskMemoryEntry).where(
             ThreadTaskMemoryEntry.thread_task_id == task.id
-        )).all()
+        ))
+        memory_items = result.all()
 
     memory_items_arr = []
     for memory_item in memory_items:
@@ -287,6 +310,10 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
         })
 
     computer_use_user_message = [
+        {
+            'type': 'text',
+            'text': f"Today's date: {datetime.datetime.now().strftime('%Y-%m-%d')}"
+        },
         {
             'type': 'text',
             'text': f'Current Subtask: {current_subtask.subtask_text}'
@@ -328,7 +355,7 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
     ])
 
     chain = prompt | llm
-    response = chain.invoke({})
+    response = await chain.ainvoke({})
 
     print('Token Usage: ', response.usage_metadata)
 
@@ -344,8 +371,8 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
                     chain_of_thought=response_item.get('reasoning_content', {}).get('text'),
                 )
                 db.add(thinking_message)
-                db.commit()
-                db.refresh(thinking_message)
+                await db.commit()
+                await db.refresh(thinking_message)
             elif response_item.get('type') == 'text':
                 response_data = extract_json(response_item.get('text'))
     else:
@@ -362,8 +389,8 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
         text=json.dumps(response_data),
     )
     db.add(ai_message)
-    db.commit()
-    db.refresh(ai_message)
+    await db.commit()
+    await db.refresh(ai_message)
 
     if response_data.get('current_state', {}).get('save_to_memory', False):
         memory_text = response_data['current_state'].get('memory')
@@ -373,8 +400,8 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
                 text=memory_text,
             )
             db.add(memory_entry)
-            db.commit()
-            db.refresh(memory_entry)
+            await db.commit()
+            await db.refresh(memory_entry)
 
     # Iterate over all actions
     actions_arr = response_data.get('actions', [])
@@ -384,25 +411,25 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
         if action_type == 'subtask_completed' and len(actions_arr) == 1:
             current_subtask.status = SubtaskStatus.COMPLETED
             db.add(current_subtask)
-            db.commit()
-            db.refresh(current_subtask)
+            await db.commit()
+            await db.refresh(current_subtask)
 
         elif action_type == 'subtask_failed':
             # Mark plan, task, and thread as failed
             current_plan.status = ThreadTaskPlanStatus.FAILED
             db.add(current_plan)
-            db.commit()
-            db.refresh(current_plan)
+            await db.commit()
+            await db.refresh(current_plan)
 
             task.status = ThreadTaskStatus.FAILED
             db.add(task)
-            db.commit()
-            db.refresh(task)
+            await db.commit()
+            await db.refresh(task)
 
             instance.status = ThreadStatus.STANDBY
             db.add(instance)
-            db.commit()
-            db.refresh(instance)
+            await db.commit()
+            await db.refresh(instance)
 
             ai_message = ThreadMessage(
                 thread_id=instance.id,
@@ -412,8 +439,8 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
                 text=json.dumps({'actions': [{'action': 'task_failed'}]}),
             )
             db.add(ai_message)
-            db.commit()
-            db.refresh(ai_message)
+            await db.commit()
+            await db.refresh(ai_message)
 
         elif action_type == 'tool_use':
             tool = act['params'].get('tool')
@@ -425,17 +452,17 @@ def next_step(tid: str, next_step_req: NextStepRequest, db: Session = Depends(ge
                     text=args.get('text', ''),
                 )
                 db.add(memory_entry)
-                db.commit()
-                db.refresh(memory_entry)
+                await db.commit()
+                await db.refresh(memory_entry)
 
             elif tool in ['read_pdf', 'fetch_url', 'summarize_youtube_video']:
-                tool_output_text = run_tool_server_side(tool, args)
+                tool_output_text = await run_tool_server_side_async(tool, args)
                 memory_entry = ThreadTaskMemoryEntry(
                     thread_task_id=task.id,
                     text=tool_output_text,
                 )
                 db.add(memory_entry)
-                db.commit()
-                db.refresh(memory_entry)
+                await db.commit()
+                await db.refresh(memory_entry)
 
     return response_data
