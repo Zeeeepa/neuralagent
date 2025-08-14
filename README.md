@@ -219,6 +219,11 @@ REACT_APP_PROTOCOL=http
 REACT_APP_WEBSOCKET_PROTOCOL=ws
 REACT_APP_DNS=127.0.0.1:8000
 REACT_APP_API_KEY=
+# Keep false on Mac (for now!)
+REACT_APP_BACKGROUND_MODE_SUPPORTED=false
+
+# Keep as is
+PORT=6763
 ```
 
 4. **Go back to the desktop root:**
