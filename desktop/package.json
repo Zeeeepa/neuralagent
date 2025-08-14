@@ -29,8 +29,8 @@
     ],
     "extraResources": [
       {
-        "from": "agent_build/agent",
-        "to": "agent"
+        "from": "agent_build/agent.exe",
+        "to": "agent.exe"
       }
     ],
     "mac": {
