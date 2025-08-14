@@ -51,43 +51,6 @@ def get_bounding_rect(x, y, width, height):
     }
 
 
-def get_running_apps_fallback():
-    """Fallback method using psutil when native methods fail"""
-    result = []
-    try:
-        seen_names = set()
-        for proc in psutil.process_iter(['pid', 'name', 'status']):
-            try:
-                info = proc.info
-                if (info['name'] and 
-                    info['status'] != 'zombie' and
-                    not info['name'].startswith('.') and
-                    info['name'] not in seen_names):
-                    
-                    # Filter common system processes
-                    ignored = {
-                        'kernel_task', 'launchd', 'kextd', 'UserEventAgent',
-                        'WindowServer', 'loginwindow', 'SystemUIServer',
-                        'Dock', 'Finder'  # You might want to keep Finder
-                    }
-                    
-                    if info['name'] not in ignored:
-                        result.append({
-                            "pid": info['pid'],
-                            "name": info['name'],
-                            "focused": False  # Can't determine focus with psutil
-                        })
-                        seen_names.add(info['name'])
-                        
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                continue
-                
-    except Exception as e:
-        print(f"⚠️ Fallback app detection failed: {e}")
-        
-    return result
-
-
 def get_running_apps():
     system = platform.system()
     result = []
@@ -124,69 +87,28 @@ def get_running_apps():
             except Exception:
                 pass
             return True
+        
         try:
             app_list = []
             win32gui.EnumWindows(callback, app_list)
             result = app_list
         except:
-            result = []
+            pass
 
     elif system == "Darwin":
         import subprocess, json
         try:
-            # More robust AppleScript with better error handling
-            script1 = '''
-            tell application "System Events"
-                try
-                    set appNames to name of every process whose background only is false
-                    return appNames as string
-                on error
-                    return ""
-                end try
-            end tell
-            '''
-            
-            script2 = '''
-            tell application "System Events"
-                try
-                    set frontApp to name of first process whose frontmost is true
-                    return frontApp as string
-                on error
-                    return ""
-                end try
-            end tell
-            '''
-            
-            # Get running apps
-            proc1 = subprocess.run(
-                ["osascript", "-e", script1],
-                capture_output=True,
-                text=True,
-                timeout=5
+            output = subprocess.check_output(
+                ["osascript", "-e", 'tell application "System Events" to get name of every process whose background only is false']
             )
-            
-            # Get focused app
-            proc2 = subprocess.run(
-                ["osascript", "-e", script2], 
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            
-            if proc1.returncode == 0 and proc1.stdout.strip():
-                apps_output = proc1.stdout.strip()
-                active = proc2.stdout.strip() if proc2.returncode == 0 else ""
-                
-                # Parse the comma-separated string
-                apps = [name.strip() for name in apps_output.split(",") if name.strip()]
-                result = [{"pid": None, "name": app, "focused": app == active} for app in apps]
-            else:
-                # Fallback to psutil if AppleScript fails
-                result = get_running_apps_fallback()
-                
-        except Exception as e:
-            print(f"⚠️ macOS app detection failed: {e}")
-            result = get_running_apps_fallback()
+            active = subprocess.check_output(
+                ["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true']
+            ).decode().strip()
+
+            apps = [name.strip() for name in output.decode().split(",")]
+            result = [{"pid": None, "name": app, "focused": app == active} for app in apps]
+        except Exception:
+            pass
 
     elif system == "Linux":
         try:
