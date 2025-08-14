@@ -55,7 +55,6 @@ async function triggerMacOSPermissionDialogs() {
   
   // console.log('[Permission Trigger] Triggering macOS permission dialogs...');
   
-  // // Just spawn and forget - we don't care about the result
   // spawn(agentPath, [], {
   //   env: {
   //     NEURALAGENT_AGENT_MODE: 'macos_permission_test'
