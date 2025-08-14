@@ -336,7 +336,7 @@ async def send_message(tid: str, obj: SendMessageObj,
 
     prompt = ChatPromptTemplate.from_messages([
         ('system', ai_prompts.CLASSIFIER_AGENT_PROMPT),
-        HumanMessage(f'Previous Tasks (Limited to 10): \n {json.dumps(previous_tasks_arr)}'),
+        HumanMessage(f'Previous Tasks (Limited to 10): \n {json.dumps(previous_tasks_arr)}\n{f"Today's date: {datetime.datetime.now().strftime('%Y-%m-%d')}"}'),
         ('user', obj.text),
     ])
 
