@@ -27,8 +27,12 @@ yarn-error.log*
 /neuralagent-app/.env
 
 /aiagent/venv/
+/aiagent/venv_x64/
+/aiagent/venv_amd64/
 /dist
 /build
 /agent_build
+/agent_build_x64
+/agent_build_arm64
 
 /assets/assets/

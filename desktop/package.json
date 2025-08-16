@@ -12,6 +12,7 @@
     "react-build": "cd neuralagent-app && npm run build",
     "build:agent": "\"aiagent\\venv\\Scripts\\pyinstaller\" --clean --noconfirm --onefile --name agent --distpath agent_build/ aiagent/main.py",
     "build:agent:mac": "./aiagent/venv/bin/pyinstaller --clean --noconfirm --onefile --name agent --distpath agent_build/ aiagent/main.py",
+    "build:agent:mac:x64": "arch -x86_64 ./aiagent/venv_x64/bin/pyinstaller --clean --noconfirm --onefile --name agent --distpath agent_build_x64/ aiagent/main.py",
     "build": "npm run react-build && electron-builder",
     "dev": "electron ."
   },
