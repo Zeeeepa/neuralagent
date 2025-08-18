@@ -62,7 +62,7 @@ def get_llm(agent: str, temperature: float = 0.0, max_tokens: int = None, thinki
                 temperature=temperature,
                 timeout=None,
                 max_retries=2,
-                thinking={"type": "enabled", "budget_tokens": 2000},
+                thinking={"type": "enabled", "budget_tokens": 500},
             )
     
     elif model_type == "ollama":
@@ -83,7 +83,7 @@ def get_llm(agent: str, temperature: float = 0.0, max_tokens: int = None, thinki
         thinking_params = {
             "thinking": {
                 "type": "enabled",
-                "budget_tokens": 2000
+                "budget_tokens": 500
             }
         }
         boto3_config = Config(
