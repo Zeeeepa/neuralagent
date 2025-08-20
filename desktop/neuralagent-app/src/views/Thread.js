@@ -373,7 +373,7 @@ export default function Thread() {
               </ToggleContainer>
               <FlexSpacer />
               {isSendingMessage ? (
-                <ClipLoader color={'#fff'} size={40} />
+                <ClipLoader color={isDarkMode ? '#fff' : 'rgba(0,0,0,0.7)'} size={40} />
               ) : (
                 thread.status === 'working' ? (
                   <IconButton
