@@ -657,6 +657,12 @@ function createOverlayWindow() {
     },
   });
 
+  try {
+    overlayWindow.setContentProtection(true);
+  } catch (e) {
+    console.warn('[Overlay] setContentProtection not available:', e);
+  }
+
   const overlayURL = isDev
     ? 'http://localhost:6763/#/overlay'
     : `file://${path.join(__dirname, 'neuralagent-app', 'build', 'index.html')}#/overlay`;
