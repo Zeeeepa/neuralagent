@@ -12,11 +12,25 @@ import webbrowser
 import sys
 import io
 import pyperclip
-import unicodedata
+import traceback
 import json
 import asyncio
 import logging
 import ui_extraction
+
+pyautogui.FAILSAFE = False
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    
+    print(f"\n❌ UNHANDLED EXCEPTION!")
+    print(f"Exception: {exc_type.__name__}: {exc_value}")
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+    # Don't exit - let the process continue
+
+sys.excepthook = handle_exception
 
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -38,29 +52,32 @@ screenshot_requested = False
 
 def type_unicode_smart(text: str, delay: float = 0.05) -> None:
     try:
-        text.encode("ascii")
+        try:
+            text.encode("ascii")
 
-        for idx, line in enumerate(text.split("\n")):
-            pyautogui.write(line, interval=delay)
-            if idx < len(text.split("\n")) - 1:
-                pyautogui.hotkey("shift", "enter")
-        return
-    except UnicodeEncodeError:
-        pass
+            for idx, line in enumerate(text.split("\n")):
+                pyautogui.write(line, interval=delay)
+                if idx < len(text.split("\n")) - 1:
+                    pyautogui.hotkey("shift", "enter")
+            return
+        except UnicodeEncodeError:
+            pass
 
-    old_clip = pyperclip.paste()
+        old_clip = pyperclip.paste()
 
-    pyperclip.copy(text)
-    for _ in range(20):
-        if pyperclip.paste() == text:
-            break
+        pyperclip.copy(text)
+        for _ in range(20):
+            if pyperclip.paste() == text:
+                break
+            time.sleep(0.05)
+
+        hotkey = ("command", "v") if sys.platform == "darwin" else ("ctrl", "v")
+        pyautogui.hotkey(*hotkey)
         time.sleep(0.05)
 
-    hotkey = ("command", "v") if sys.platform == "darwin" else ("ctrl", "v")
-    pyautogui.hotkey(*hotkey)
-    time.sleep(0.05)
-
-    pyperclip.copy(old_clip)
+        pyperclip.copy(old_clip)
+    except Exception as e:
+        pass
 
 def windows_direct_app_launch(app_name):
     try:
@@ -166,14 +183,18 @@ def focus_app(app_name):
     return False
 
 def take_screenshot_b64():
-    with mss.mss() as sct:
-        monitor = sct.monitors[1]
-        shot = sct.grab(monitor)
-        img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
-        img = img.resize((1280, 720))
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        return base64.b64encode(buffer.getvalue()).decode("utf-8")
+    try:
+        with mss.mss() as sct:
+            monitor = sct.monitors[1]
+            shot = sct.grab(monitor)
+            img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+            img = img.resize((1280, 720))
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            return base64.b64encode(buffer.getvalue()).decode("utf-8")
+    except Exception as e:
+        print(f"⚠️ Screenshot failed: {e}")
+        return None
 
 def safe_coords(x, y, screen_width, screen_height):
     return max(1, min(screen_width - 1, x)), max(1, min(screen_height - 1, y))
@@ -182,14 +203,24 @@ def perform_action(response):
     global screenshot_requested
     actions = response.get("actions", [])
     TARGET_W, TARGET_H = 1280, 720
-    screen_w, screen_h = pyautogui.size()
+
+    try:
+        screen_w, screen_h = pyautogui.size()
+        if screen_w == 0 or screen_h == 0:
+            screen_w, screen_h = 1920, 1080
+    except:
+        screen_w, screen_h = 1920, 1080
+    
     scale_x = screen_w / TARGET_W
     scale_y = screen_h / TARGET_H
 
     def scale_coords(coord):
-        x = int(coord["x"] * scale_x)
-        y = int(coord["y"] * scale_y)
-        return safe_coords(x, y, screen_w, screen_h)
+        try:
+            x = int(coord.get("x", 0) * scale_x)
+            y = int(coord.get("y", 0) * scale_y)
+            return safe_coords(x, y, screen_w, screen_h)
+        except:
+            return 100, 100
 
     for action in actions:
         try:
@@ -298,81 +329,102 @@ def perform_action(response):
 
 
 def get_next_step():
-    global screenshot_requested
-    url = os.getenv('NEURALAGENT_API_URL') + '/aiagent/' + os.getenv('NEURALAGENT_THREAD_ID') + '/next_step'
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + os.getenv('NEURALAGENT_USER_ACCESS_TOKEN'),
-    }
-
-    interactive_elements = ui_extraction.extract_interactive_elements()
-    running_apps = ui_extraction.get_running_apps()
-
-    # Automatically trigger screenshot if WebView is present
-    has_webview = any(e.get("type") == "PossibleWebView" for e in interactive_elements)
-    should_send_screenshot = screenshot_requested or has_webview
-
-    payload = {
-        'current_os': 'MacOS' if platform.system() == 'darwin' else platform.system(),
-        'current_interactive_elements': interactive_elements,
-        'current_running_apps': running_apps,
-    }
-
-    if should_send_screenshot:
-        payload['screenshot_b64'] = take_screenshot_b64()
-        screenshot_requested = False
-
     try:
-        response = requests.post(url, json=payload, headers=headers)
-        if response.status_code in (200, 201, 202):
-            return response.json()
+        global screenshot_requested
+        url = os.getenv('NEURALAGENT_API_URL') + '/aiagent/' + os.getenv('NEURALAGENT_THREAD_ID') + '/next_step'
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + os.getenv('NEURALAGENT_USER_ACCESS_TOKEN'),
+        }
+
+        interactive_elements = ui_extraction.extract_interactive_elements()
+        running_apps = ui_extraction.get_running_apps()
+
+        # Automatically trigger screenshot if WebView is present
+        has_webview = any(e.get("type") == "PossibleWebView" for e in interactive_elements)
+        should_send_screenshot = screenshot_requested or has_webview
+
+        payload = {
+            'current_os': 'MacOS' if platform.system() == 'darwin' else platform.system(),
+            'current_interactive_elements': interactive_elements,
+            'current_running_apps': running_apps,
+        }
+
+        if should_send_screenshot:
+            payload['screenshot_b64'] = take_screenshot_b64()
+            screenshot_requested = False
+
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+            if response.status_code in (200, 201, 202):
+                return response.json()
+        except Exception as e:
+            print(f"[❌] Error sending next step request: {e}")
+    except requests.exceptions.Timeout:
+        print("⚠️ Request timed out")
+        return None
     except Exception as e:
-        print(f"[❌] Error sending next step request: {e}")
+        print(f"⚠️ Error in get_next_step: {e}")
+        return None
     
     return None
 
 def get_current_subtask():
-    url = os.getenv('NEURALAGENT_API_URL') + '/aiagent/' + os.getenv('NEURALAGENT_THREAD_ID') + '/current_subtask'
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + os.getenv('NEURALAGENT_USER_ACCESS_TOKEN'),
-    }
-    payload = {
-        'current_os': 'MacOS' if platform.system() == 'darwin' else platform.system(),
-        'current_interactive_elements': ui_extraction.extract_interactive_elements(),
-        'current_running_apps': ui_extraction.get_running_apps(),
-    }
     try:
-        response = requests.post(url, json=payload, headers=headers)
-        if response.status_code in (200, 201, 202):
-            return response.json()
-    except:
-        pass
+        url = os.getenv('NEURALAGENT_API_URL') + '/aiagent/' + os.getenv('NEURALAGENT_THREAD_ID') + '/current_subtask'
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + os.getenv('NEURALAGENT_USER_ACCESS_TOKEN'),
+        }
+        payload = {
+            'current_os': 'MacOS' if platform.system() == 'darwin' else platform.system(),
+            'current_interactive_elements': ui_extraction.extract_interactive_elements(),
+            'current_running_apps': ui_extraction.get_running_apps(),
+        }
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+            if response.status_code in (200, 201, 202):
+                return response.json()
+        except:
+            pass
+    except requests.exceptions.Timeout:
+        print("⚠️ Request timed out")
+        return None
+    except Exception as e:
+        print(f"⚠️ Error in get_next_step: {e}")
+        return None
+    
     return None
 
 
 def get_suggestions():
-    api_url = os.getenv("NEURALAGENT_API_URL") + '/aiagent/suggestor'
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + os.getenv("NEURALAGENT_USER_ACCESS_TOKEN"),
-    }
-
-    payload = {
-        "current_os": "MacOS" if platform.system() == "darwin" else platform.system(),
-        "current_interactive_elements": ui_extraction.extract_interactive_elements(),
-        "current_running_apps": ui_extraction.get_running_apps(),
-        "screenshot_b64": take_screenshot_b64(),
-    }
-
     try:
-        response = requests.post(api_url, json=payload, headers=headers)
-        if response.status_code in (200, 201):
-            return response.json()
-        else:
-            return {"suggestions": [], "error": f"HTTP {response.status_code}"}
+        api_url = os.getenv("NEURALAGENT_API_URL") + '/aiagent/suggestor'
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + os.getenv("NEURALAGENT_USER_ACCESS_TOKEN"),
+        }
+
+        payload = {
+            "current_os": "MacOS" if platform.system() == "darwin" else platform.system(),
+            "current_interactive_elements": ui_extraction.extract_interactive_elements(),
+            "current_running_apps": ui_extraction.get_running_apps(),
+            "screenshot_b64": take_screenshot_b64(),
+        }
+
+        try:
+            response = requests.post(api_url, json=payload, headers=headers)
+            if response.status_code in (200, 201):
+                return response.json()
+            else:
+                return {"suggestions": [], "error": f"HTTP {response.status_code}"}
+        except Exception as e:
+            return {"suggestions": [], "error": str(e)}
+    except requests.exceptions.Timeout:
+        print("⚠️ Request timed out")
+        return {"suggestions": []}
     except Exception as e:
-        return {"suggestions": [], "error": str(e)}
+        return {"suggestions": []}
 
 
 def trigger_permission_dialogs():
@@ -404,36 +456,47 @@ def trigger_permission_dialogs():
 
 async def main_loop():
     while True:
-        current_subtask_response = get_current_subtask()
-        if not current_subtask_response:
+        try:
+            current_subtask_response = get_current_subtask()
+            if not current_subtask_response:
+                continue
+
+            if current_subtask_response.get('action') == 'task_completed':
+                break
+
+            action_response = get_next_step()
+            print("NeuralAgent Next Step Response:", action_response)
+
+            if not action_response:
+                continue
+
+            if any(a['action'] in ['task_completed', 'subtask_failed'] for a in action_response.get('actions', [])):
+                break
+
+            perform_action(action_response)
+        except:
             continue
-
-        if current_subtask_response.get('action') == 'task_completed':
-            break
-
-        action_response = get_next_step()
-        print("NeuralAgent Next Step Response:", action_response)
-
-        if not action_response:
-            continue
-
-        if any(a['action'] in ['task_completed', 'subtask_failed'] for a in action_response.get('actions', [])):
-            break
-
-        perform_action(action_response)
 
 
 def main():
-    agent_mode = os.getenv('NEURALAGENT_AGENT_MODE', 'agent').lower()
-    
-    if agent_mode == 'suggestor':
-        suggestions = get_suggestions()
-        print(json.dumps(suggestions))
-        return
-    elif agent_mode == 'macos_permission_test' and platform.system().lower() == 'darwin':
-        trigger_permission_dialogs()
-    else:
-        asyncio.run(main_loop())
+    try:
+        agent_mode = os.getenv('NEURALAGENT_AGENT_MODE', 'agent').lower()
+        
+        if agent_mode == 'suggestor':
+            suggestions = get_suggestions()
+            print(json.dumps(suggestions))
+            return
+        elif agent_mode == 'macos_permission_test' and platform.system().lower() == 'darwin':
+            trigger_permission_dialogs()
+        else:
+            asyncio.run(main_loop())
+    except KeyboardInterrupt:
+        print(f"\nInterrupted")
+        sys.exit(0)
+    except Exception as e:
+        print(f"❌ Fatal error: {e}")
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

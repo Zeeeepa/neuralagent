@@ -2,6 +2,7 @@ import platform
 import pyautogui
 import psutil
 import os
+import subprocess
 
 if platform.system() == "Windows":
     import win32gui
@@ -34,21 +35,27 @@ except ImportError:
 
 
 def get_bounding_rect(x, y, width, height):
-    screen_w, screen_h = pyautogui.size()
-    scale_x = 1280 / screen_w
-    scale_y = 720 / screen_h
+    try:
+        screen_w, screen_h = pyautogui.size()
+        if screen_w == 0 or screen_h == 0:
+            return {'x': 0, 'y': 0, 'width': 0, 'height': 0}
+        
+        scale_x = 1280 / screen_w
+        scale_y = 720 / screen_h
 
-    scaled_x = int(x * scale_x)
-    scaled_y = int(y * scale_y)
-    scaled_width = int(width * scale_x)
-    scaled_height = int(height * scale_y)
+        scaled_x = int(x * scale_x)
+        scaled_y = int(y * scale_y)
+        scaled_width = int(width * scale_x)
+        scaled_height = int(height * scale_y)
 
-    return {
-        'x': int(scaled_x + scaled_width / 2),
-        'y': int(scaled_y + scaled_height / 2),
-        'width': scaled_width,
-        'height': scaled_height,
-    }
+        return {
+            'x': int(scaled_x + scaled_width / 2),
+            'y': int(scaled_y + scaled_height / 2),
+            'width': scaled_width,
+            'height': scaled_height,
+        }
+    except Exception:
+        return {'x': 0, 'y': 0, 'width': 0, 'height': 0}
 
 
 def get_running_apps():
@@ -96,7 +103,6 @@ def get_running_apps():
             pass
 
     elif system == "Darwin":
-        import subprocess, json
         try:
             output = subprocess.check_output(
                 ["osascript", "-e", 'tell application "System Events" to get name of every process whose background only is false']
@@ -112,7 +118,6 @@ def get_running_apps():
 
     elif system == "Linux":
         try:
-            import subprocess
             output = subprocess.check_output(["wmctrl", "-lp"]).decode()
             lines = output.splitlines()
             active_output = subprocess.check_output(["xdotool", "getactivewindow", "getwindowpid"]).decode().strip()
@@ -298,6 +303,9 @@ def detect_possible_webview(bounding_boxes, screen_w, screen_h, threshold=0.5):
     Detect if a large portion of the screen is uncovered, suggesting a WebView.
     Returns a placeholder element if so.
     """
+    if screen_w == 0 or screen_h == 0:
+        return None
+    
     total_area = screen_w * screen_h
     covered = 0
 
@@ -330,38 +338,43 @@ def extract_interactive_elements():
     or fallback native on macOS/Linux.
     Returns a list of dicts: {id, type, label, bounding_box}.
     """
-    system = platform.system()
-    raw = []
+    try:
+        system = platform.system()
+        raw = []
 
-    if system == "Windows":
-        ui = extract_ui_elements_windows()
-        icons = []
-        # only show icons when no UI controls found (i.e., desktop is active)
-        if not ui:
-            icons = extract_desktop_icons_windows()
-        raw = ui + icons
+        if system == "Windows":
+            ui = extract_ui_elements_windows()
+            icons = []
+            # only show icons when no UI controls found (i.e., desktop is active)
+            if not ui:
+                icons = extract_desktop_icons_windows()
+            raw = ui + icons
 
-    elif system == "Darwin":
-        raw = extract_ui_elements_macos()
+        elif system == "Darwin":
+            raw = extract_ui_elements_macos()
 
-    elif system == "Linux":
-        raw = extract_ui_elements_linux()
+        elif system == "Linux":
+            raw = extract_ui_elements_linux()
 
-    else:
-        raise NotImplementedError(f"Unsupported platform: {system}")
+        else:
+            print(f"⚠️ Unsupported platform: {system}") 
+            return []
 
-    interactive = []
-    for idx, e in enumerate(raw, start=1):
-        interactive.append({
-            "id": idx,
-            "type": e["type"],
-            "label": e.get("label", ""),
-            "bounding_box": e.get("bounding_box"),
-        })
-    
-    screen_w, screen_h = pyautogui.size()
-    webview_hint = detect_possible_webview(interactive, screen_w, screen_h)
-    if webview_hint:
-        interactive.append(webview_hint)
+        interactive = []
+        for idx, e in enumerate(raw, start=1):
+            interactive.append({
+                "id": idx,
+                "type": e.get("type", "Unknown"),
+                "label": e.get("label", ""),
+                "bounding_box": e.get("bounding_box"),
+            })
+        
+        screen_w, screen_h = pyautogui.size()
+        webview_hint = detect_possible_webview(interactive, screen_w, screen_h)
+        if webview_hint:
+            interactive.append(webview_hint)
 
-    return interactive
+        return interactive
+    except Exception:
+        print(f"⚠️ UI extraction error: {e}")
+        return []
