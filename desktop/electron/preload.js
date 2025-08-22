@@ -29,4 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetupProgress: (cb) => ipcRenderer.on('setup-progress', (_, pct) => cb(pct)),
   onSetupComplete: (cb) => ipcRenderer.on('setup-complete', (_, result) => cb(result)),
   testMacOSPermissions: () => ipcRenderer.invoke('test-macos-permissions'),
+  hideOverlayTemporarily: (duration) => ipcRenderer.send('hide-overlay-temporarily', duration),
+  showOverlay: () => ipcRenderer.send('show-overlay'),
+  hideOverlay: () => ipcRenderer.send('hide-overlay'),
+  setOverlayClickThrough: (clickThrough) => ipcRenderer.send('set-overlay-click-through', clickThrough),
 });

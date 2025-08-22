@@ -24,6 +24,13 @@ import io
 import os
 from utils import upload_helper
 import datetime
+from routers.apps.threads_ws import (
+    broadcast_agent_action, 
+    broadcast_agent_thinking, 
+    broadcast_task_status_update,
+    broadcast_subtask_start,
+    broadcast_subtask_complete
+)
 
 
 router = APIRouter(
@@ -149,6 +156,10 @@ async def current_subtask_request(tid: str, current_subtask_request_obj: Current
     current_subtask = result.first()
 
     if not current_subtask:
+        await broadcast_task_status_update(tid, "task_completed", {
+            "message": "All subtasks completed! Task finished successfully."
+        })
+        
         current_plan.status = ThreadTaskPlanStatus.COMPLETED
         db.add(current_plan)
         await db.commit()
@@ -176,6 +187,8 @@ async def current_subtask_request(tid: str, current_subtask_request_obj: Current
         await db.refresh(ai_message)
 
         return {'action': 'task_completed'}
+    
+    # await broadcast_subtask_start(tid, current_subtask.subtask_text)
 
     return {
         'id': current_subtask.id,
@@ -363,6 +376,10 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
     if task.extended_thinking_mode is True:
         for response_item in response.content:
             if response_item.get('type') == 'reasoning_content':
+                thinking_text = response_item.get('reasoning_content', {}).get('text', '')
+                if thinking_text:
+                    await broadcast_agent_thinking(tid, thinking_text)
+                
                 thinking_message = ThreadMessage(
                     thread_id=instance.id,
                     thread_task_id=task.id,
@@ -377,6 +394,12 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
                 response_data = extract_json(response_item.get('text'))
     else:
         response_data = extract_json(response.content)
+    
+    current_state = response_data.get('current_state', {})
+    if current_state.get('next_goal'):
+        await broadcast_task_status_update(tid, "planning", {
+            "message": f"Action: {current_state.get('next_goal')}"
+        })
 
     ai_message = ThreadMessage(
         thread_id=instance.id,
@@ -408,13 +431,21 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
     for act in actions_arr:
         action_type = act.get('action')
 
+        await broadcast_agent_action(tid, act)
+
         if action_type == 'subtask_completed' and len(actions_arr) == 1:
+            await broadcast_subtask_complete(tid, current_subtask.subtask_text)
+
             current_subtask.status = SubtaskStatus.COMPLETED
             db.add(current_subtask)
             await db.commit()
             await db.refresh(current_subtask)
 
         elif action_type == 'subtask_failed':
+            await broadcast_task_status_update(tid, "task_failed", {
+                "message": f"Task failed: {current_subtask.subtask_text}"
+            })
+
             # Mark plan, task, and thread as failed
             current_plan.status = ThreadTaskPlanStatus.FAILED
             db.add(current_plan)
@@ -445,6 +476,12 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
         elif action_type == 'tool_use':
             tool = act['params'].get('tool')
             args = act['params'].get('args', {})
+
+            await broadcast_task_status_update(tid, "using_tool", {
+                "message": f"Using tool: {tool}",
+                "tool": tool,
+                "args": args
+            })
 
             if tool == 'save_to_memory':
                 memory_entry = ThreadTaskMemoryEntry(

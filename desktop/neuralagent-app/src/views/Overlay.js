@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
 import neuralagent_logo_ic_only_white from '../assets/neuralagent_logo_ic_only_white.png';
 import neuralagent_logo_ic_only from '../assets/neuralagent_logo_ic_only.png';
@@ -52,6 +52,120 @@ const SuggestionsPanel = styled.div`
   padding: 10px;
   flex: 1;
   overflow-y: auto;
+`;
+
+const AgentStatusPanel = styled.div`
+  margin-top: 5px;
+  background-color: ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.1)'};
+  border-radius: 8px;
+  padding: 15px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StatusHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+`;
+
+const TaskTitle = styled.div`
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  margin-right: 10px;
+`;
+
+const ConnectionStatus = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: ${props => props.isDarkMode ? '#ccc' : '#666'};
+`;
+
+const StatusIndicator = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: ${props => 
+    props.status === 'connected' ? '#4CAF50' :
+    props.status === 'disconnected' ? '#FF9800' : '#F44336'
+  };
+`;
+
+const AgentActivityContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const CurrentActionDisplay = styled.div`
+  background: ${props => props.isDarkMode ? 'rgba(76, 175, 80, 0.1)' : 'rgba(76, 175, 80, 0.1)'};
+  border-left: 3px solid #4CAF50;
+  padding: 10px;
+  border-radius: 6px;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
+  font-size: 13px;
+  margin-bottom: 10px;
+`;
+
+const ThinkingDisplay = styled.div`
+  background: ${props => props.isDarkMode ? 'rgba(33, 150, 243, 0.1)' : 'rgba(33, 150, 243, 0.1)'};
+  border-left: 3px solid #2196F3;
+  padding: 10px;
+  border-radius: 6px;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
+  font-size: 12px;
+  margin-bottom: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+`;
+
+const ActionLogContainer = styled.div`
+  background: ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'};
+  border-radius: 6px;
+  padding: 10px;
+  flex: 1;
+  overflow-y: auto;
+`;
+
+const ActionLogTitle = styled.div`
+  color: ${props => props.isDarkMode ? '#ccc' : '#666'};
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const ActionLogItem = styled.div`
+  color: ${props => props.isDarkMode ? '#ddd' : '#333'};
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid ${props => props.isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const TaskProgressDisplay = styled.div`
+  background: ${props => props.isDarkMode ? 'rgba(156, 39, 176, 0.1)' : 'rgba(156, 39, 176, 0.1)'};
+  border-left: 3px solid #9C27B0;
+  padding: 10px;
+  border-radius: 6px;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
+  font-size: 13px;
+  margin-bottom: 10px;
 `;
 
 const SuggestionItem = styled.div`
@@ -114,6 +228,149 @@ const ModeToggle = styled.button`
   }
 `;
 
+const blink = keyframes`
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+`;
+
+const TypingCursor = styled.span`
+  animation: ${blink} 1s infinite;
+  color: ${props => props.isDarkMode ? '#fff' : '#000'};
+`;
+
+// Streaming Text Component
+const StreamingText = ({ text, isStreaming, speed = 80, onComplete = () => {} }) => {
+  const [displayedText, setDisplayedText] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      setDisplayedText(text);
+      setCurrentIndex(text.length);
+      onComplete();
+      return;
+    }
+
+    if (currentIndex < text.length) {
+      timeoutRef.current = setTimeout(() => {
+        const words = text.split(' ');
+        const currentWords = words.slice(0, Math.floor((currentIndex / text.length) * words.length) + 1);
+        setDisplayedText(currentWords.join(' '));
+        setCurrentIndex(prev => prev + 1);
+      }, speed);
+    } else {
+      onComplete();
+    }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [text, currentIndex, isStreaming, speed, onComplete]);
+
+  useEffect(() => {
+    setDisplayedText('');
+    setCurrentIndex(0);
+  }, [text]);
+
+  const showCursor = isStreaming && currentIndex < text.length;
+
+  return (
+    <span>
+      {displayedText}
+      {showCursor && <TypingCursor>|</TypingCursor>}
+    </span>
+  );
+};
+
+// WebSocket management hook
+const useThreadWebSocket = (threadId, accessToken, onMessage) => {
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const maxReconnectAttempts = 5;
+
+  const connect = useCallback(() => {
+    if (!threadId || !accessToken) return;
+
+    try {
+      const wsUrl = `${process.env.REACT_APP_WEBSOCKET_PROTOCOL}://${process.env.REACT_APP_DNS}/apps/threads/ws/${threadId}/agent_updates?access_token=${accessToken}`;
+      
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        setConnectionStatus('connected');
+        setReconnectAttempts(0);
+        
+        // Send ping to keep connection alive
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'ping' }));
+        }
+      };
+
+      wsRef.current.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          onMessage(message);
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('WebSocket disconnected');
+        setConnectionStatus('disconnected');
+        
+        // Attempt to reconnect
+        if (reconnectAttempts < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff
+          reconnectTimeoutRef.current = setTimeout(() => {
+            setReconnectAttempts(prev => prev + 1);
+            connect();
+          }, delay);
+        }
+      };
+
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnectionStatus('error');
+      };
+
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      setConnectionStatus('error');
+    }
+  }, [threadId, accessToken, onMessage, reconnectAttempts]);
+
+  const disconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setConnectionStatus('disconnected');
+    setReconnectAttempts(0);
+  }, []);
+
+  useEffect(() => {
+    if (threadId && accessToken) {
+      connect();
+    }
+    
+    return () => {
+      disconnect();
+    };
+  }, [threadId, accessToken, connect, disconnect]);
+
+  return { connectionStatus, disconnect };
+};
+
 export default function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -124,8 +381,87 @@ export default function Overlay() {
   const [backgroundMode, setBackgroundMode] = useState(false);
   const [thinkingMode, setThinkingMode] = useState(false);
 
+  // WebSocket state with streaming
+  const [currentAction, setCurrentAction] = useState('');
+  const [isActionStreaming, setIsActionStreaming] = useState(false);
+  const [currentThinking, setCurrentThinking] = useState('');
+  const [isThinkingStreaming, setIsThinkingStreaming] = useState(false);
+  const [taskProgress, setTaskProgress] = useState('');
+  const [isProgressStreaming, setIsProgressStreaming] = useState(false);
+  const [actionLog, setActionLog] = useState([]);
+  const [taskTitle, setTaskTitle] = useState('');
+
   const accessToken = useSelector(state => state.accessToken);
   const isDarkMode = useSelector(state => state.isDarkMode);
+
+  // Smart overlay hiding logic
+  const shouldHideOverlay = useCallback((actionDescription) => {
+    const mouseActions = [
+      'clicking', 'double-clicking', 'right-clicking', 'dragging',
+      'mouse', 'moving mouse', 'scroll'
+    ];
+    
+    return mouseActions.some(action => 
+      actionDescription.toLowerCase().includes(action)
+    );
+  }, []);
+
+  // WebSocket message handler
+  const handleWebSocketMessage = useCallback((message) => {
+    switch (message.type) {
+      case 'connection_established':
+        setTaskTitle(message.thread_title || 'AI Agent Task');
+        break;
+        
+      case 'agent_action':
+        const actionDescription = message.description;
+        setCurrentAction(actionDescription);
+        setIsActionStreaming(true);
+        setActionLog(prev => [
+          { description: actionDescription, timestamp: new Date().toLocaleTimeString() },
+          ...prev.slice(0, 19) // Keep last 20 actions
+        ]);
+        
+        // Smart overlay hiding for mouse actions
+        if (shouldHideOverlay(actionDescription)) {
+          console.log('🫥 Hiding overlay for mouse action:', actionDescription);
+          window.electronAPI?.hideOverlayTemporarily?.(3000); // Hide for 3 seconds
+        }
+        break;
+        
+      case 'agent_thinking':
+        setCurrentThinking(prev => prev + (prev ? '\n' : '') + message.thinking);
+        setIsThinkingStreaming(true);
+        break;
+        
+      case 'task_status':
+        if (message.subtask_info?.message) {
+          setTaskProgress(message.subtask_info.message);
+          setIsProgressStreaming(true);
+        }
+        
+        if (message.status === 'task_completed') {
+          setCurrentAction('🎉 Task completed successfully!');
+          setIsActionStreaming(true);
+          setTaskProgress('All subtasks completed');
+          setIsProgressStreaming(true);
+        } else if (message.status === 'task_failed') {
+          setCurrentAction('❌ Task failed');
+          setIsActionStreaming(true);
+          setTaskProgress('Task execution failed');
+          setIsProgressStreaming(true);
+        } else if (message.status === 'subtask_started') {
+          setCurrentThinking(''); // Clear thinking when new subtask starts
+        }
+        break;
+        
+      default:
+        console.log('Unknown WebSocket message:', message);
+    }
+  }, []);
+
+  // WebSocket connection
+  const { connectionStatus } = useThreadWebSocket(runningThreadId, accessToken, handleWebSocketMessage);
 
   const executeTask = () => {
     if (loading) {
@@ -180,6 +516,15 @@ export default function Overlay() {
       setLoading(false);
       window.electronAPI.stopAIAgent();
       setRunningThreadId(null);
+      // Clear WebSocket state
+      setCurrentAction('');
+      setCurrentThinking('');
+      setTaskProgress('');
+      setActionLog([]);
+      setTaskTitle('');
+      setIsActionStreaming(false);
+      setIsThinkingStreaming(false);
+      setIsProgressStreaming(false);
     }).catch((error) => {
       setLoading(false);
       if (error.response?.status === constants.status.UNAUTHORIZED) {
@@ -196,6 +541,17 @@ export default function Overlay() {
     const data = {task: prompt !== null ? prompt : messageText, background_mode: backgroundMode, extended_thinking_mode: thinkingMode};
     setMessageText('');
     setLoading(true);
+    
+    // Clear previous WebSocket state
+    setCurrentAction('');
+    setCurrentThinking('');
+    setTaskProgress('');
+    setActionLog([]);
+    setTaskTitle('');
+    setIsActionStreaming(false);
+    setIsThinkingStreaming(false);
+    setIsProgressStreaming(false);
+    
     axios.post('/threads', data, {
       headers: {
         'Authorization': 'Bearer ' + accessToken,
@@ -219,6 +575,7 @@ export default function Overlay() {
           process.env.REACT_APP_BACKGROUND_MODE_SUPPORTED === 'true' && (backgroundMode || response.data.is_background_mode_requested)
         );
         setRunningThreadId(response.data.thread_id);
+        setTaskTitle(prompt !== null ? prompt : messageText);
       }
     }).catch((error) => {
       setLoading(false);
@@ -258,6 +615,15 @@ export default function Overlay() {
         setShowSuggestions(true);
         setSuggestions([]);
         getSuggestions();
+        // Clear WebSocket state
+        setCurrentAction('');
+        setCurrentThinking('');
+        setTaskProgress('');
+        setActionLog([]);
+        setTaskTitle('');
+        setIsActionStreaming(false);
+        setIsThinkingStreaming(false);
+        setIsProgressStreaming(false);
       });
     }
   }, []);
@@ -357,6 +723,72 @@ export default function Overlay() {
                 </SuggestionItem>
               ))}
         </SuggestionsPanel>
+      )}
+      {expanded && runningThreadId && (
+        <AgentStatusPanel isDarkMode={isDarkMode}>
+          <StatusHeader isDarkMode={isDarkMode}>
+            <TaskTitle isDarkMode={isDarkMode}>
+              {taskTitle || 'AI Agent Task'}
+            </TaskTitle>
+            <ConnectionStatus isDarkMode={isDarkMode}>
+              <StatusIndicator status={connectionStatus} />
+              {connectionStatus === 'connected' ? 'Live' : 
+               connectionStatus === 'disconnected' ? 'Reconnecting...' : 'Error'}
+            </ConnectionStatus>
+          </StatusHeader>
+
+          <AgentActivityContainer>
+            {taskProgress && (
+              <TaskProgressDisplay isDarkMode={isDarkMode}>
+                <StreamingText 
+                  text={taskProgress} 
+                  isStreaming={isProgressStreaming}
+                  speed={15}
+                  onComplete={() => setIsProgressStreaming(false)}
+                />
+              </TaskProgressDisplay>
+            )}
+
+            {currentAction && (
+              <CurrentActionDisplay isDarkMode={isDarkMode}>
+                <StreamingText 
+                  text={currentAction} 
+                  isStreaming={isActionStreaming}
+                  speed={15}
+                  onComplete={() => setIsActionStreaming(false)}
+                />
+              </CurrentActionDisplay>
+            )}
+
+            {currentThinking && thinkingMode && (
+              <ThinkingDisplay isDarkMode={isDarkMode}>
+                <strong>💭 Agent Thinking:</strong><br />
+                <StreamingText 
+                  text={currentThinking} 
+                  isStreaming={isThinkingStreaming}
+                  speed={15}
+                  onComplete={() => setIsThinkingStreaming(false)}
+                />
+              </ThinkingDisplay>
+            )}
+
+            {actionLog.length > 0 && (
+              <ActionLogContainer isDarkMode={isDarkMode}>
+                <ActionLogTitle isDarkMode={isDarkMode}>
+                  Recent Actions
+                </ActionLogTitle>
+                {actionLog.map((action, idx) => (
+                  <ActionLogItem key={idx} isDarkMode={isDarkMode}>
+                    <span style={{ opacity: 0.7, fontSize: '10px' }}>
+                      {action.timestamp}
+                    </span>{' '}
+                    {action.description}
+                  </ActionLogItem>
+                ))}
+              </ActionLogContainer>
+            )}
+          </AgentActivityContainer>
+        </AgentStatusPanel>
       )}
     </Container>
   );

@@ -19,6 +19,11 @@ import os
 from utils import upload_helper
 import asyncio
 import datetime
+from routers.apps.threads_ws import (
+    broadcast_agent_action, 
+    broadcast_agent_thinking, 
+    broadcast_task_status_update
+)
 
 
 router = APIRouter(
@@ -198,12 +203,16 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
     if task.extended_thinking_mode is True:
         for response_item in response.content:
             if response_item.get('type') == 'reasoning_content':
+                thinking_text = response_item.get('reasoning_content', {}).get('text', '')
+                if thinking_text:
+                    await broadcast_agent_thinking(tid, thinking_text)
+                
                 thinking_message = ThreadMessage(
                     thread_id=instance.id,
                     thread_task_id=task.id,
                     thread_chat_type=ThreadChatType.THINKING,
                     thread_chat_from=ThreadChatFromChoices.FROM_AI,
-                    chain_of_thought=response_item.get('reasoning_content', {}).get('text'),
+                    chain_of_thought=thinking_text,
                 )
                 db.add(thinking_message)
                 await db.commit()
@@ -212,6 +221,12 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
                 response_data = extract_json(response_item.get('text'))
     else:
         response_data = extract_json(response.content)
+    
+    current_state = response_data.get('current_state', {})
+    if current_state.get('next_goal'):
+        await broadcast_task_status_update(tid, "planning", {
+            "message": f"Action: {current_state.get('next_goal')}"
+        })
 
     ai_message = ThreadMessage(
         thread_id=instance.id,
@@ -242,7 +257,13 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
     for act in actions_arr:
         action_type = act.get('action')
 
+        await broadcast_agent_action(tid, act)
+
         if action_type == 'task_completed' and len(actions_arr) == 1:
+            await broadcast_task_status_update(tid, "task_completed", {
+                "message": "Task completed successfully."
+            })
+
             task.status = ThreadTaskStatus.COMPLETED
             db.add(task)
             await db.commit()
@@ -265,6 +286,10 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
             # await db.refresh(ai_message)
 
         elif action_type == 'task_failed':
+            await broadcast_task_status_update(tid, "task_failed", {
+                "message": f"Task failed: {task.task_text}"
+            })
+            
             task.status = ThreadTaskStatus.FAILED
             db.add(task)
             await db.commit()
@@ -289,6 +314,12 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
         elif action_type == 'tool_use':
             tool = act['params'].get('tool')
             args = act['params'].get('args', {})
+
+            await broadcast_task_status_update(tid, "using_tool", {
+                "message": f"Using tool: {tool}",
+                "tool": tool,
+                "args": args
+            })
 
             if tool == 'save_to_memory':
                 memory_entry = ThreadTaskMemoryEntry(

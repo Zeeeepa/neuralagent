@@ -27,6 +27,7 @@ let bgAuthProcess;
 let bgAgentWindow;
 let bgSetupWindow;
 let readyToClose = false;
+let overlayHideTimeout = null;
 
 function ensureDeviceId() {
   let deviceId = store.get(constants.DEVICE_ID_STORE_KEY);
@@ -175,6 +176,56 @@ ipcMain.handle('start-background-setup', async () => {
   }
 
   return result;
+});
+
+// Hide overlay temporarily during agent mouse actions
+ipcMain.on('hide-overlay-temporarily', (_, duration = 3000) => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  
+  console.log(`[Overlay] Hiding temporarily for ${duration}ms`);
+  
+  // Clear any existing timeout
+  if (overlayHideTimeout) {
+    clearTimeout(overlayHideTimeout);
+  }
+  
+  // Hide the overlay
+  overlayWindow.hide();
+  
+  // Set timeout to show it again WITHOUT taking focus
+  overlayHideTimeout = setTimeout(() => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      // Show overlay without stealing focus
+      overlayWindow.showInactive();
+      console.log('[Overlay] Restored after temporary hide (no focus)');
+    }
+    overlayHideTimeout = null;
+  }, duration);
+});
+
+// Manual overlay show/hide controls
+ipcMain.on('show-overlay', () => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.showInactive(); // Don't steal focus
+  }
+});
+
+ipcMain.on('hide-overlay', () => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.hide();
+  }
+});
+
+// Make overlay click-through during agent operations
+ipcMain.on('set-overlay-click-through', (_, clickThrough = true) => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    try {
+      overlayWindow.setIgnoreMouseEvents(clickThrough);
+      console.log(`[Overlay] Click-through mode: ${clickThrough}`);
+    } catch (error) {
+      console.warn('[Overlay] setIgnoreMouseEvents not supported:', error);
+    }
+  }
 });
 
 
@@ -678,13 +729,18 @@ function expandMinimizeOverlay(expanded, hasSuggestions = false) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
 
   const W = expanded ? 350 : 60;
-  const H = expanded ? (hasSuggestions ? 380 : 60) : 60;
+  const H = expanded ? (hasSuggestions ? 380 : 500) : 60;
   const M = 25;
   const { width: SW, height: SH } = screen.getPrimaryDisplay().workArea;
   const X = SW - W - M;
   const Y = SH - H - M;
 
   overlayWindow.setBounds({ x: X, y: Y, width: W, height: H }, true);
+
+  // Ensure overlay is visible if not temporarily hidden, but don't steal focus
+  if (!overlayHideTimeout) {
+    overlayWindow.showInactive();
+  }
 }
 
 const gotLock = app.requestSingleInstanceLock();
@@ -722,6 +778,10 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  if (overlayHideTimeout) {
+    clearTimeout(overlayHideTimeout);
+    overlayHideTimeout = null;
+  }
   cleanupExtractedBinary();
   app.isQuitting = true;
 });

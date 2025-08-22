@@ -7,6 +7,7 @@ from routers.aiagent.generic import router as aiagent_router
 from routers.apps.threads import router as threads_router
 from routers.aiagent.suggestor import router as suggestor_aiagent_router
 from routers.aiagent.background import router as bg_mode_aiagent_router
+from routers.apps.threads_ws import ws_router as threads_ws_router, broadcast, init_redis
 from utils.procedures import CustomError
 
 from dotenv import load_dotenv
@@ -40,15 +41,16 @@ app.include_router(threads_router)
 app.include_router(suggestor_aiagent_router)
 app.include_router(bg_mode_aiagent_router)
 app.include_router(aiagent_router)
+app.include_router(threads_ws_router)
 
-# @app.on_event('startup')
-# async def startup():
-#     await broadcast.connect()
-#
-#
-# @app.on_event('shutdown')
-# async def shutdown():
-#     await broadcast.disconnect()
+@app.on_event('startup')
+async def startup():
+    await init_redis()  # From threads_ws.py
+
+@app.on_event('shutdown')
+async def shutdown():
+    if broadcast:
+        await broadcast.disconnect()
 
 
 @app.get('/')

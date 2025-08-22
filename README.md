@@ -122,8 +122,8 @@ JWT_ISS=NeuralAgentBackend
 # Generate a Random String for the JWT_SECRET
 JWT_SECRET=
 
-# Keep Empty, for now!
-REDIS_CONNECTION=
+# Configure Redis for Streaming, make sure you run redis at this address either via docker or locally on your computer.
+REDIS_CONNECTION=redis://127.0.0.1:6379
 
 # Optional: For Bedrock
 AWS_ACCESS_KEY_ID=
