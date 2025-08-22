@@ -15,7 +15,7 @@
 
 In this demo, NeuralAgent was given the following prompt:
 
-"Find 5 2025 AI trends, write about them on Notepad and save it to my desktop!"
+"Do a research about 5 2025 AI trends, write about them on TextEdit and save it to my desktop!"
 
 It took care of the rest!
 
