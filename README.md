@@ -1,4 +1,3 @@
-
 [![NeuralAgent](docs/images/neuralagent_github_cover.jpg)](https://www.getneuralagent.com)
 
 **NeuralAgent** is your AI personal assistant that actually *gets things done*. It lives on your desktop, types, clicks, navigates the browser, fills out forms, sends emails, and performs tasks automatically using modern large language models all powered by a fast, extensible, and open architecture. NeuralAgent uses your computer both in the foreground and the background.
@@ -33,6 +32,7 @@ It took care of the rest!
 ## 🚀 Features
 
 - ✅ Desktop automation with `pyautogui`
+- ✅ Real-time WebSocket streaming with Redis broadcasting
 - ✅ Background automation (Windows Only For Now) via WSL (browser-only).
 - ✅ Supports Anthropic, OpenAI, Azure OpenAI, AWS Bedrock, Gemini and Ollama.
 - ✅ Modular agents: Planner, Classifier, Suggestor, Title, and more
@@ -61,6 +61,7 @@ Before running **NeuralAgent**, make sure the following dependencies are install
 |-------------------|---------------------------------------------------|----------------------|
 | 🐍 **Python**       | Required for backend and local AI agent daemon   | `>= 3.9`              |
 | 🐘 **PostgreSQL**   | Relational database used by the backend          | `>= 13`               |
+| 🔴 **Redis**        | Used for real-time WebSocket broadcasting        | `>= 6.0`              |
 | 🟦 **Node.js + npm** | Needed to run the Electron + React frontend      | `Node >= 18`, `npm >= 9` |
 
 ---
@@ -69,6 +70,7 @@ Before running **NeuralAgent**, make sure the following dependencies are install
 
 - **Python**: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 - **PostgreSQL**: [https://www.postgresql.org/download/](https://www.postgresql.org/download/)
+- **Redis**: [https://redis.io/docs/install/](https://redis.io/docs/install/)
 - **Node.js (includes npm)**: [https://nodejs.org/en/download](https://nodejs.org/en/download)
 
 ---
@@ -106,7 +108,25 @@ pip install -r requirements.txt
 
 3. **Create a local Postgres database. (You have to install Postgres on your computer)**
 
-4. **Copy `.env.example` to `.env` and fill in:**
+4. **Set up Redis (required for WebSocket features):**
+
+**Option A: Local Redis Installation**
+- Install Redis on your system (see installation guides above)
+- Start Redis server: `redis-server`
+- Use: `REDIS_CONNECTION=redis://127.0.0.1:6379`
+
+**Option B: Docker Redis (easiest)**
+```bash
+docker run -d --name neuralagent-redis -p 6379:6379 redis:latest
+```
+
+**Option C: External Redis (production)**
+- Use cloud providers like Azure Cache for Redis, AWS ElastiCache, or Upstash
+- Use connection string format: `rediss://user:pass@host:port`
+
+**Note:** WebSocket features will be disabled if Redis is unavailable, but the app will still function.
+
+5. **Copy `.env.example` to `.env` and fill in:**
 
 ```env
 DB_HOST=
@@ -122,7 +142,10 @@ JWT_ISS=NeuralAgentBackend
 # Generate a Random String for the JWT_SECRET
 JWT_SECRET=
 
-# Configure Redis for Streaming, make sure you run redis at this address either via docker or locally on your computer.
+# Redis Configuration for Real-time WebSocket Broadcasting
+# Local Redis (default): redis://127.0.0.1:6379
+# Docker Redis: redis://127.0.0.1:6379
+# External Redis (Azure/AWS): rediss://user:pass@host:port
 REDIS_CONNECTION=redis://127.0.0.1:6379
 
 # Optional: For Bedrock
@@ -182,13 +205,13 @@ GOOGLE_LOGIN_CLIENT_SECRET=
 GOOGLE_LOGIN_DESKTOP_REDIRECT_URI=http://127.0.0.1:36478
 ```
 
-5. **Run database migrations:**
+6. **Run database migrations:**
 
 ```bash
 alembic upgrade head
 ```
 
-6. **Start the backend server:**
+7. **Start the backend server:**
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -261,6 +284,20 @@ Agent types include:
 - `SUGGESTOR_AGENT`
 - `COMPUTER_USE_AGENT`
 - `SUMMARIZER_AGENT`
+
+---
+
+## 🔧 Troubleshooting
+
+### Redis Connection Issues
+- **App starts but WebSocket features don't work**: Check Redis is running and `REDIS_CONNECTION` is correct
+- **"Redis connection failed" in logs**: Redis is optional - app will continue without broadcasting features
+- **For cloud Redis**: Ensure firewall rules allow connections from your application
+
+### Common Redis Solutions
+- **Local**: `redis-server` to start Redis locally
+- **Docker**: `docker run -d -p 6379:6379 redis:latest`
+- **Cloud**: Use managed Redis services for production
 
 ---
 
