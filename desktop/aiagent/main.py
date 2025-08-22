@@ -50,7 +50,7 @@ logging.basicConfig(
 
 screenshot_requested = False
 
-def type_unicode_smart(text: str, delay: float = 0.05) -> None:
+def type_unicode_smart(text: str, delay: float = 0.005) -> None:
     try:
         try:
             text.encode("ascii")
@@ -277,7 +277,7 @@ def perform_action(response):
                     pyautogui.hotkey("ctrl" if sys.platform != "darwin" else "command", "a")
                     pyautogui.press("backspace")
                 
-                type_unicode_smart(params["text"], delay=0.05)
+                type_unicode_smart(params["text"], delay=0.005)
 
             elif act == "hold_key":
                 pyautogui.keyDown(params["text"])
