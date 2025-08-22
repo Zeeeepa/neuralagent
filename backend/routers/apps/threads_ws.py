@@ -1,11 +1,10 @@
 from fastapi import APIRouter, WebSocket, Depends, WebSocketDisconnect
-from typing import List, Dict, Optional
+from typing import Optional
 from sqlmodel import select, and_
 from sqlmodel.ext.asyncio.session import AsyncSession
 from db.database import get_async_session
 from db.models import User, Thread, ThreadStatus, ThreadTask, ThreadTaskStatus
 from broadcaster import Broadcast
-from dependencies.auth_dependencies import get_current_user_dependency
 from utils.procedures import CustomError
 import json
 import os
@@ -40,7 +39,7 @@ async def init_redis():
 
 class ThreadChannelManager:
     def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+        pass
 
     async def publish_to_thread(self, thread_id: str, message: dict):
         """Publish message to all clients listening to a specific thread"""
