@@ -96,6 +96,7 @@ const StatusIndicator = styled.div`
   border-radius: 50%;
   background-color: ${props => 
     props.status === 'connected' ? '#4CAF50' :
+    props.status === 'connecting' ? '#FFC107' :
     props.status === 'disconnected' ? '#FF9800' : '#F44336'
   };
 `;
@@ -289,12 +290,28 @@ const StreamingText = ({ text, isStreaming, speed = 80, onComplete = () => {} })
 const useThreadWebSocket = (threadId, accessToken, onMessage) => {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);  // Use ref instead of state!
+  const isConnectingRef = useRef(false);   // Prevent multiple connections
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
     if (!threadId || !accessToken) return;
+    if (isConnectingRef.current) return; // Prevent multiple connections
+
+    // Clean up existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    isConnectingRef.current = true;
+    setConnectionStatus('connecting');
 
     try {
       const wsUrl = `${process.env.REACT_APP_WEBSOCKET_PROTOCOL}://${process.env.REACT_APP_DNS}/apps/threads/ws/${threadId}/agent_updates?access_token=${accessToken}`;
@@ -303,8 +320,9 @@ const useThreadWebSocket = (threadId, accessToken, onMessage) => {
 
       wsRef.current.onopen = () => {
         console.log('WebSocket connected');
+        isConnectingRef.current = false;
         setConnectionStatus('connected');
-        setReconnectAttempts(0);
+        reconnectAttemptsRef.current = 0; // Reset attempts on successful connection
         
         // Send ping to keep connection alive
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -321,46 +339,66 @@ const useThreadWebSocket = (threadId, accessToken, onMessage) => {
         }
       };
 
-      wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected');
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket disconnected', event.code, event.reason);
+        isConnectingRef.current = false;
         setConnectionStatus('disconnected');
         
-        // Attempt to reconnect
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff
+        // Only reconnect if we haven't exceeded max attempts and it wasn't a manual close
+        if (reconnectAttemptsRef.current < maxReconnectAttempts && event.code !== 1000) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
+          console.log(`Attempting reconnect ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts} in ${delay}ms`);
+          
           reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1);
+            reconnectAttemptsRef.current += 1;
             connect();
           }, delay);
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          console.log('Max reconnect attempts reached');
+          setConnectionStatus('error');
         }
       };
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
+        isConnectingRef.current = false;
         setConnectionStatus('error');
       };
 
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
+      isConnectingRef.current = false;
       setConnectionStatus('error');
     }
-  }, [threadId, accessToken, onMessage, reconnectAttempts]);
+  }, [threadId, accessToken, onMessage]);
 
   const disconnect = useCallback(() => {
+    console.log('Manual WebSocket disconnect');
+    
+    // Clear reconnection timeout
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
+    
+    // Reset attempts
+    reconnectAttemptsRef.current = 0;
+    isConnectingRef.current = false;
+    
+    // Close connection
     if (wsRef.current) {
-      wsRef.current.close();
+      wsRef.current.close(1000, 'Manual disconnect'); // Use code 1000 for normal closure
       wsRef.current = null;
     }
+    
     setConnectionStatus('disconnected');
-    setReconnectAttempts(0);
   }, []);
 
   useEffect(() => {
     if (threadId && accessToken) {
       connect();
+    } else {
+      disconnect();
     }
     
     return () => {
@@ -733,6 +771,7 @@ export default function Overlay() {
             <ConnectionStatus isDarkMode={isDarkMode}>
               <StatusIndicator status={connectionStatus} />
               {connectionStatus === 'connected' ? 'Live' : 
+               connectionStatus === 'connecting' ? 'Connecting...' :
                connectionStatus === 'disconnected' ? 'Reconnecting...' : 'Error'}
             </ConnectionStatus>
           </StatusHeader>
@@ -743,7 +782,7 @@ export default function Overlay() {
                 <StreamingText 
                   text={taskProgress} 
                   isStreaming={isProgressStreaming}
-                  speed={15}
+                  speed={25}
                   onComplete={() => setIsProgressStreaming(false)}
                 />
               </TaskProgressDisplay>
@@ -754,7 +793,7 @@ export default function Overlay() {
                 <StreamingText 
                   text={currentAction} 
                   isStreaming={isActionStreaming}
-                  speed={15}
+                  speed={35}
                   onComplete={() => setIsActionStreaming(false)}
                 />
               </CurrentActionDisplay>
@@ -766,7 +805,7 @@ export default function Overlay() {
                 <StreamingText 
                   text={currentThinking} 
                   isStreaming={isThinkingStreaming}
-                  speed={15}
+                  speed={45}
                   onComplete={() => setIsThinkingStreaming(false)}
                 />
               </ThinkingDisplay>
