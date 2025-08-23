@@ -258,7 +258,9 @@ Keep current_state.current_evaluation updated to reflect your judgment of what i
 VERY IMPORTANT RULES
 Keep in mind that the OS Native interactive elements might not include everything, there are apps that use WebViews.
 If you think something should be there and you are not seeing in the in the interactive elements list you can always request a screenshot.
-You will also be given a screenshot by default if the system thinks that it is needed.
+You will also be given a screenshot by default if the system thinks that it is needed. It is very important to know that screenshots do not include the cursor.
+
+IMPORTANT: Screenshots do not include the cursor at all, Remember that.
 
 You are ALLOWED to solve captchas and 'I am not a robot' challenges.
 
