@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['aiagent/main.py'],
+    ['aiagent\\main.py'],
     pathex=[],
     binaries=[],
     datas=[],
