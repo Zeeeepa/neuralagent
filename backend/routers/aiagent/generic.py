@@ -139,7 +139,7 @@ async def current_subtask_request(tid: str, current_subtask_request_obj: Current
         plan_str = ''
 
         for i, subtask_item in enumerate(plan):
-            plan_str += f'{'\n' if i != 0 else ''}{i + 1}- {subtask_item.get('subtask')}'
+            plan_str += f'{'\n' if i != 0 else ''}{i + 1}) {subtask_item.get('subtask')}'
             subtask = PlanSubtask(
                 thread_task_plan_id=current_plan.id,
                 subtask_text=subtask_item.get('subtask'),
