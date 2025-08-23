@@ -136,7 +136,10 @@ async def current_subtask_request(tid: str, current_subtask_request_obj: Current
         await db.commit()
         await db.refresh(current_plan)
 
+        plan_str = ''
+
         for i, subtask_item in enumerate(plan):
+            plan_str += f'{'\n' if i != 0 else ''}{i + 1}- {subtask_item.get('subtask')}'
             subtask = PlanSubtask(
                 thread_task_plan_id=current_plan.id,
                 subtask_text=subtask_item.get('subtask'),
@@ -148,6 +151,10 @@ async def current_subtask_request(tid: str, current_subtask_request_obj: Current
             db.add(subtask)
             await db.commit()
             await db.refresh(subtask)
+        
+        await broadcast_task_status_update(tid, "planning", {
+            "message": f"Plan: {plan_str}"
+        })
 
     result = await db.exec(select(PlanSubtask).where(and_(
         PlanSubtask.status == SubtaskStatus.ACTIVE,
@@ -293,7 +300,7 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
     
     for previous_message in task_previous_messages:
         previous_action_dict = json.loads(previous_message.text)
-        # previous_action_dict.pop("current_state", None)
+        previous_action_dict.pop("current_state", None)
         action_history.append(previous_action_dict)
 
     if task.needs_memory_from_previous_tasks is True:
@@ -349,7 +356,7 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
     if len(action_history) > 0:
         computer_use_user_message.append({
             'type': 'text',
-            'text': f'Previous Actions (Limited to 5, newest first): \n {json.dumps(action_history)}'
+            'text': f'Your Most Recent Actions (Limited to 5, newest first) These are the actions you most recently took (you must take those into consideration when evaluating the current state and the next goal): \n {json.dumps(action_history)}'
         })
     if len(previous_subtasks_arr) > 0:
         computer_use_user_message.append({

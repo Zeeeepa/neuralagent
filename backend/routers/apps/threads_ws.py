@@ -142,6 +142,7 @@ async def agent_updates_websocket(
 
         if payload.get('token_type') != 'access':
             await websocket.close()
+            return
 
         user_id = payload.get('user_id')
         u_query = select(User).where(User.id == user_id)
@@ -149,15 +150,18 @@ async def agent_updates_websocket(
 
         if not user:
             await websocket.close()
+            return
 
         if not await is_session_valid(payload.get('session_id'), db):
             await websocket.close()
+            return
         
         # Verify thread access
         thread = await verify_thread_access(thread_id, user_id, db)
 
         if not redis_available:
             await websocket.close()
+            return
         
         await websocket.accept()
         

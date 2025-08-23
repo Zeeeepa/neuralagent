@@ -448,7 +448,7 @@ export default function Overlay() {
   const handleWebSocketMessage = useCallback((message) => {
     switch (message.type) {
       case 'connection_established':
-        setTaskTitle(message.thread_title || 'AI Agent Task');
+        setTaskTitle(message.thread_title || 'NeuralAgent Task');
         break;
         
       case 'agent_action':
@@ -766,7 +766,7 @@ export default function Overlay() {
         <AgentStatusPanel isDarkMode={isDarkMode}>
           <StatusHeader isDarkMode={isDarkMode}>
             <TaskTitle isDarkMode={isDarkMode}>
-              {taskTitle || 'AI Agent Task'}
+              {taskTitle || 'NeuralAgent Task'}
             </TaskTitle>
             <ConnectionStatus isDarkMode={isDarkMode}>
               <StatusIndicator status={connectionStatus} />

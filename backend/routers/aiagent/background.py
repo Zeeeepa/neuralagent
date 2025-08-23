@@ -120,7 +120,7 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
     
     for previous_message in task_previous_messages:
         previous_action_dict = json.loads(previous_message.text)
-        # previous_action_dict.pop("current_state", None)
+        previous_action_dict.pop("current_state", None)
         action_history.append(previous_action_dict)
 
     if task.needs_memory_from_previous_tasks is True:
@@ -176,7 +176,7 @@ async def next_step(tid: str, next_step_req: BackgroundNextStepRequest,
     if len(action_history) > 0:
         computer_use_user_message.append({
             'type': 'text',
-            'text': f'Previous Actions (Limited to 5, newest first): \n {json.dumps(action_history)}'
+            'text': f'Your Most Recent Actions (Limited to 5, newest first) These are the actions you most recently took (you must take those into consideration when evaluating the current state and the next goal):\n {json.dumps(action_history)}'
         })
     if len(previous_tasks_arr) > 0:
         computer_use_user_message.append({
