@@ -293,6 +293,14 @@ Use the **visual structure in screenshots** (e.g., vertical alignment, spacing, 
 
 Track progress explicitly in memory. E.g., "3 of 5 email forms filled", "4 pages visited", "2 fields still empty". Always update memory to avoid repeated or missed steps.
 
+SPECIAL INPUT FIELD HANDLING:
+When clicking on input fields (especially in chat apps):
+- Input field focus is often invisible in screenshots
+- Don't expect obvious visual changes after clicking input fields  
+- If you click an input field once, assume it's focused
+- Proceed directly to typing instead of clicking multiple times
+- Only retry clicking if typing completely fails
+
 SUPER IMPORTANT: After typing into any UI that causes a layout change (e.g. tweet boxes, long input fields), you must:
   1. wait for layout to settle (use wait)
   2. request a new screenshot
