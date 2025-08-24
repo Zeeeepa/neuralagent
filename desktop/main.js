@@ -45,21 +45,21 @@ async function triggerMacOSPermissionDialogs() {
     return;
   }
 
-  spawn('./aiagent/venv/bin/python', ['./aiagent/main.py'], {
-    env: {
-      NEURALAGENT_AGENT_MODE: 'macos_permission_test'
-    },
-  });
-
-  // const agentPath = getOptimalAgentBinary();
-  
-  // console.log('[Permission Trigger] Triggering macOS permission dialogs...');
-  
-  // spawn(agentPath, [], {
+  // spawn('./aiagent/venv/bin/python', ['./aiagent/main.py'], {
   //   env: {
   //     NEURALAGENT_AGENT_MODE: 'macos_permission_test'
   //   },
   // });
+
+  const agentPath = getOptimalAgentBinary();
+  
+  console.log('[Permission Trigger] Triggering macOS permission dialogs...');
+  
+  spawn(agentPath, [], {
+    env: {
+      NEURALAGENT_AGENT_MODE: 'macos_permission_test'
+    },
+  });
 }
 
 ipcMain.handle('open-external', async (_, url) => {
@@ -239,23 +239,23 @@ ipcMain.handle('get-suggestions', async (_, baseURL) => {
     const isWindows = process.platform === 'win32';
     const isMac = process.platform === 'darwin';
 
-    const suggestor = spawn(isWindows ? './aiagent/venv/Scripts/python' : './aiagent/venv/bin/python', ['./aiagent/main.py'], {
-      env: {
-        NEURALAGENT_API_URL: baseURL,
-        NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
-        NEURALAGENT_AGENT_MODE: 'suggestor',
-      },
-    });
-
-    // const suggestorPath = getOptimalAgentBinary();
-
-    // const suggestor = spawn(suggestorPath, [], {
+    // const suggestor = spawn(isWindows ? './aiagent/venv/Scripts/python' : './aiagent/venv/bin/python', ['./aiagent/main.py'], {
     //   env: {
     //     NEURALAGENT_API_URL: baseURL,
     //     NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
     //     NEURALAGENT_AGENT_MODE: 'suggestor',
     //   },
     // });
+
+    const suggestorPath = getOptimalAgentBinary();
+
+    const suggestor = spawn(suggestorPath, [], {
+      env: {
+        NEURALAGENT_API_URL: baseURL,
+        NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
+        NEURALAGENT_AGENT_MODE: 'suggestor',
+      },
+    });
 
     let output = '';
     let errorOutput = '';
@@ -292,26 +292,26 @@ ipcMain.on('launch-ai-agent', async (_, baseURL, threadId, backgroundMode) => {
   store.set(constants.LAST_BACKGROUND_MODE_VALUE, backgroundMode.toString());
 
   if (!backgroundMode) {
-    aiagentProcess = spawn(isWindows ? './aiagent/venv/Scripts/python' : './aiagent/venv/bin/python', ['./aiagent/main.py'], {
-      env: {
-        NEURALAGENT_API_URL: baseURL,
-        NEURALAGENT_THREAD_ID: threadId,
-        NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
-        NEURALAGENT_AGENT_MODE: 'agent',
-        PYTHONUTF8: '1',
-      },
-    });
-
-    // const agentPath = getOptimalAgentBinary();
-
-    // aiagentProcess = spawn(agentPath, [], {
+    // aiagentProcess = spawn(isWindows ? './aiagent/venv/Scripts/python' : './aiagent/venv/bin/python', ['./aiagent/main.py'], {
     //   env: {
     //     NEURALAGENT_API_URL: baseURL,
     //     NEURALAGENT_THREAD_ID: threadId,
     //     NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
     //     NEURALAGENT_AGENT_MODE: 'agent',
+    //     PYTHONUTF8: '1',
     //   },
     // });
+
+    const agentPath = getOptimalAgentBinary();
+
+    aiagentProcess = spawn(agentPath, [], {
+      env: {
+        NEURALAGENT_API_URL: baseURL,
+        NEURALAGENT_THREAD_ID: threadId,
+        NEURALAGENT_USER_ACCESS_TOKEN: store.get(constants.ACCESS_TOKEN_STORE_KEY),
+        NEURALAGENT_AGENT_MODE: 'agent',
+      },
+    });
     mainWindow?.minimize();
   } else {
     // VERY IMPORTANT
