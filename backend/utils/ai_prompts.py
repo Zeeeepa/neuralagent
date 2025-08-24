@@ -275,7 +275,7 @@ NEVER assume UI is complete — scroll before declaring something not visible.
 
 When you send X, Y coordinates for a click, ALWAYS target the true interactive center of the element. DO NOT click near the edge or in whitespace regions — especially in list items, search results, or chat apps. If unsure, offset slightly toward the middle of the label or icon.
 
-If your previous click likely missed the real target (e.g. clicked on whitespace or UI didn’t respond), you MAY retry the click with a slight offset or toward a more visually aligned area (e.g., the visible text label). Always use the latest screenshot to guide the retry.
+If your previous click likely missed the real target (e.g. clicked on whitespace or UI didn't respond), you MAY retry the click with a slight offset or toward a more visually aligned area (e.g., the visible text label). Always use the latest screenshot to guide the retry.
 
 Before any action, check that the last one succeeded (visible effect in UI).
 
@@ -293,13 +293,64 @@ Use the **visual structure in screenshots** (e.g., vertical alignment, spacing, 
 
 Track progress explicitly in memory. E.g., "3 of 5 email forms filled", "4 pages visited", "2 fields still empty". Always update memory to avoid repeated or missed steps.
 
-SPECIAL INPUT FIELD HANDLING:
-SUPER IMPORTANT: When clicking on input fields (especially in chat apps):
-- Input field focus is often invisible in screenshots
-- Don't expect obvious visual changes after clicking input fields  
-- SUPER IMPORTANT: If you click an input field once, assume it's focused
-- Proceed directly to typing instead of clicking multiple times
-- Only retry clicking if typing completely fails
+🚨 CRITICAL LOOP PREVENTION RULES:
+NEVER perform the same click coordinates more than 3 times in a row. If you have clicked similar coordinates (within 50 pixels) 3 times without success, you MUST:
+1. Request a screenshot to reassess the situation
+2. Try a completely different approach (keyboard navigation, different coordinates, etc.)
+3. Use Tab key or arrow keys to navigate to the target element
+4. Consider that the element might already be focused and ready for input
+
+MANDATORY ACTION PROGRESSION RULES:
+1. If you just clicked an input field and evaluated it as "Success", your NEXT action MUST be typing text, not clicking again.
+2. If you have clicked the same general area (within 100 pixels) more than 2 times, you MUST either:
+   - Request a screenshot to re-evaluate
+   - Try a completely different approach
+   - Use keyboard navigation (Tab, Arrow keys)
+3. NEVER click the same coordinates more than 3 times in a row.
+4. After any "typing" action, you MUST either send the message (Enter key) or evaluate if more typing is needed.
+
+CHAT APPLICATION INPUT FIELD RULE:
+In chat applications (WhatsApp, Telegram, Slack, Discord, etc.), the message input field is typically ALREADY FOCUSED by default when you open a conversation.
+
+If you can see:
+- The chat interface is open ✅
+- A message input field is visible ✅  
+- No error popups appeared ✅
+- You're in the correct conversation ✅
+
+Then the field is ready for typing - DO NOT keep clicking it! Just start typing your message directly.
+
+EVALUATION FOR CHAT INPUT FIELDS:
+- "Success" = Field visible + no errors + correct chat open + no app crashes
+- "Failed" = Wrong screen appeared/error popup/field disappeared/app crashed
+- DO NOT evaluate as "Failed" just because you see no visual changes after clicking
+- Chat input fields often show NO visual feedback when clicked because they're already focused
+
+SMART INPUT FIELD DETECTION:
+When clicking input fields in chat apps:
+
+1. Click the input field once
+2. Evaluate success using THESE criteria (not just visual changes):
+   ✅ Input field exists and is visible
+   ✅ Click coordinates are within the input field bounds  
+   ✅ No error popups or unexpected screens appeared
+   ✅ Chat interface is still visible and functional
+   
+3. Do NOT expect these visual changes (they're often invisible):
+   ❌ Cursor blinking in field
+   ❌ Border color changes
+   ❌ Background color changes
+   ❌ Field highlighting
+   
+4. If all success criteria are met, proceed to typing immediately
+5. Only retry click if:
+   - Wrong screen appeared (error, popup, different app)
+   - Input field disappeared
+   - App crashed or became unresponsive
+
+EVALUATION RULE: 
+"Success" = Field is visible + click was on target + no errors + app still functional
+NOT "Success" = Visible cursor or field highlighting
 
 SUPER IMPORTANT: After typing into any UI that causes a layout change (e.g. tweet boxes, long input fields), you must:
   1. wait for layout to settle (use wait)
@@ -307,7 +358,7 @@ SUPER IMPORTANT: After typing into any UI that causes a layout change (e.g. twee
   3. verify new element positions before clicking (especially buttons that might shift like Post)
 Never click based on previous coordinates after typing — always refresh the visual context first.
 
-Use up to 3 waits if an app or response hasn’t fully loaded.
+Use up to 3 waits if an app or response hasn't fully loaded.
 
 Prefer tool_use if reading or summarizing would help more than UI action.
 
@@ -412,7 +463,7 @@ launch_app
 → { "action": "launch_app", "params": { "app_name": "e.g. Notepad, Include only the app name without any extensions." } }
 
 focus_app
-→ { "action": "focus_app", "params": { "app_name": "e.g. Notepad, Include only the app name without any extensions." } }
+→ { "action": "focus_app", "params": { "app_name": "e.g. Notepad, Include only the app name without extensions." } }
 Use focus_app to switch to an already running app and bring it in focus without needing to relaunch.
 
 request_screenshot
@@ -440,6 +491,7 @@ GENERAL REMINDERS
 🚫 Never blindly click or type.
 🚫 Never guess the presence of UI elements.
 🚫 Do not repeat already-successful actions.
+🚫 Never perform the same click more than 3 times without changing approach.
 
 Remember: Only return one valid JSON object. Never include extra text or explanation.
 """

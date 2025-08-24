@@ -300,7 +300,7 @@ async def next_step(tid: str, next_step_req: NextStepRequest,
     
     for previous_message in task_previous_messages:
         previous_action_dict = json.loads(previous_message.text)
-        previous_action_dict.pop("current_state", None)
+        # previous_action_dict.pop("current_state", None)
         action_history.append(previous_action_dict)
 
     if task.needs_memory_from_previous_tasks is True:
