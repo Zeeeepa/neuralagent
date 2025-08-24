@@ -225,29 +225,17 @@ async def cancel_all_running_tasks(db: AsyncSession = Depends(get_async_session)
                  .values(status=ThreadStatus.STANDBY))
 
     await db.exec(update(ThreadTask)
-                 .where(ThreadTask.thread_id.in_(
-                     select(Thread.id).where(Thread.user_id == user.id)
-                 ))
+                 .where(ThreadTask.thread.has(Thread.user_id == user.id))
                  .where(ThreadTask.status == ThreadTaskStatus.WORKING)
                  .values(status=ThreadTaskStatus.CANCELED))
 
     await db.exec(update(ThreadTaskPlan)
-                 .where(ThreadTaskPlan.thread_task_id.in_(
-                     select(ThreadTask.id)
-                     .select_from(ThreadTask.join(Thread))
-                     .where(Thread.user_id == user.id)
-                 ))
+                 .where(ThreadTaskPlan.thread_task.has(ThreadTask.thread.has(Thread.user_id == user.id)))
                  .where(ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE)
                  .values(status=ThreadTaskPlanStatus.CANCELED))
 
     await db.exec(update(PlanSubtask)
-                 .where(PlanSubtask.thread_task_plan_id.in_(
-                     select(ThreadTaskPlan.id)
-                     .select_from(ThreadTaskPlan
-                                 .join(ThreadTask)
-                                 .join(Thread))
-                     .where(Thread.user_id == user.id)
-                 ))
+                 .where(PlanSubtask.plan.has(ThreadTaskPlan.thread_task.has(ThreadTask.thread.has(Thread.user_id == user.id))))
                  .where(PlanSubtask.status == SubtaskStatus.ACTIVE)
                  .values(status=SubtaskStatus.CANCELED))
 
