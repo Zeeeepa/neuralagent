@@ -219,21 +219,37 @@ async def thread_messages(tid: str,
 @router.post('/cancel_all_running_tasks')
 async def cancel_all_running_tasks(db: AsyncSession = Depends(get_async_session), 
                                    user: User = Depends(get_current_user_dependency)):
-    await db.exec(update(Thread).where(Thread.status == ThreadStatus.WORKING).values(
-        status=ThreadStatus.STANDBY,
-    ))
+    await db.exec(update(Thread)
+                 .where(Thread.user_id == user.id)
+                 .where(Thread.status == ThreadStatus.WORKING)
+                 .values(status=ThreadStatus.STANDBY))
 
-    await db.exec(update(ThreadTask).where(ThreadTask.status == ThreadTaskStatus.WORKING).values(
-        status=ThreadTaskStatus.CANCELED,
-    ))
+    await db.exec(update(ThreadTask)
+                 .where(ThreadTask.thread_id.in_(
+                     select(Thread.id).where(Thread.user_id == user.id)
+                 ))
+                 .where(ThreadTask.status == ThreadTaskStatus.WORKING)
+                 .values(status=ThreadTaskStatus.CANCELED))
 
-    await db.exec(update(ThreadTaskPlan).where(ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE).values(
-        status=ThreadTaskPlanStatus.CANCELED,
-    ))
+    await db.exec(update(ThreadTaskPlan)
+                 .where(ThreadTaskPlan.thread_task_id.in_(
+                     select(ThreadTask.id)
+                     .select_from(ThreadTask.join(Thread))
+                     .where(Thread.user_id == user.id)
+                 ))
+                 .where(ThreadTaskPlan.status == ThreadTaskPlanStatus.ACTIVE)
+                 .values(status=ThreadTaskPlanStatus.CANCELED))
 
-    await db.exec(update(PlanSubtask).where(PlanSubtask.status == SubtaskStatus.ACTIVE).values(
-        status=SubtaskStatus.CANCELED,
-    ))
+    await db.exec(update(PlanSubtask)
+                 .where(PlanSubtask.thread_task_plan_id.in_(
+                     select(ThreadTaskPlan.id)
+                     .select_from(ThreadTaskPlan
+                                 .join(ThreadTask)
+                                 .join(Thread))
+                     .where(Thread.user_id == user.id)
+                 ))
+                 .where(PlanSubtask.status == SubtaskStatus.ACTIVE)
+                 .values(status=SubtaskStatus.CANCELED))
 
     await db.commit()
 
