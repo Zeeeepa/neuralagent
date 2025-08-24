@@ -33,4 +33,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showOverlay: () => ipcRenderer.send('show-overlay'),
   hideOverlay: () => ipcRenderer.send('hide-overlay'),
   setOverlayClickThrough: (clickThrough) => ipcRenderer.send('set-overlay-click-through', clickThrough),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

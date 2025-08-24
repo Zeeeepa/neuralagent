@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, dialog, screen, nativeImage } from 'electron';
+import { app, BrowserWindow, shell, Menu, ipcMain, dialog, screen, nativeImage, } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import isDev from 'electron-is-dev';
@@ -61,6 +61,10 @@ async function triggerMacOSPermissionDialogs() {
   //   },
   // });
 }
+
+ipcMain.handle('open-external', async (_, url) => {
+  shell.openExternal(url);
+});
 
 ipcMain.on('set-token', (_, token) => {
   store.set(constants.ACCESS_TOKEN_STORE_KEY, token);

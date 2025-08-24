@@ -220,7 +220,7 @@ class ThreadMessage(SQLModel, table=True):
     thread_chat_from: str = Field(nullable=False, default=ThreadChatFromChoices.FROM_USER)
     text: str = Field(sa_column=Column(Text, nullable=True))
     chain_of_thought: Optional[str] = Field(sa_column=Column(Text, nullable=True))
-    # Saving Data for Further Model Training
+    # Saving Data for Further Model Training``
     screenshot: Optional[str]
     prompt: Optional[str] = Field(sa_column=Column(Text, nullable=True))
 

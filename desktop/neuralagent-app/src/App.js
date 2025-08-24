@@ -17,6 +17,8 @@ import { logoutUser, refreshToken } from './utils/helpers';
 import { AppTheme, AppMainContainer, OverlayContainer } from './layouts/Containers';
 import Sidebar from './layouts/Sidebar';
 import { useLocation } from 'react-router-dom';
+import { useUpdateChecker } from './hooks/useUpdateChecker';
+import UpdateAppNotification from './components/UpdateAppNotification';
 
 import Login from './views/Login';
 import SignUp from './views/SignUp';
@@ -38,6 +40,8 @@ function AppRoutes() {
   const errorMessage = useSelector(state => state.errorMessage);
   const isSuccess = useSelector(state => state.isSuccess);
   const successMsg = useSelector(state => state.successMsg);
+
+  const { updateInfo, showUpdate, hideUpdate, downloadUpdate } = useUpdateChecker();
 
   return (
     <>
@@ -62,16 +66,26 @@ function AppRoutes() {
             </AppTheme>
           )
         ) : (
-          <AppTheme isDarkMode={isDarkMode}>
-            <AppMainContainer>
-              <Sidebar />
-              <Routes>
-                <Route path='/' element={<Home />} />
-                <Route path='/threads/:tid' element={<Thread />} />
-                <Route path="*" element={<RedirectTo linkType="router" to="/" redirectType="replace" />} />
-              </Routes>
-            </AppMainContainer>
-          </AppTheme>
+          <>
+            {showUpdate && updateInfo && (
+              <UpdateAppNotification
+                updateInfo={updateInfo}
+                onDownload={downloadUpdate}
+                onHide={hideUpdate}
+                isDarkMode={isDarkMode}
+              />
+            )}
+            <AppTheme isDarkMode={isDarkMode}>
+              <AppMainContainer>
+                <Sidebar />
+                <Routes>
+                  <Route path='/' element={<Home />} />
+                  <Route path='/threads/:tid' element={<Thread />} />
+                  <Route path="*" element={<RedirectTo linkType="router" to="/" redirectType="replace" />} />
+                </Routes>
+              </AppMainContainer>
+            </AppTheme>
+          </>
         )
       ) : (
         <Routes>

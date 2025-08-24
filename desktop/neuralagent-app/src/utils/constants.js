@@ -2,6 +2,7 @@ const SERVER_DNS = process.env.REACT_APP_PROTOCOL + '://' + process.env.REACT_AP
 const WEBSOCKET_DNS = process.env.REACT_APP_WEBSOCKET_PROTOCOL + '://' + process.env.REACT_APP_DNS;
 
 const constants = {
+  APP_VERSION: '1.7.1',
   BASE_URL: SERVER_DNS + '/apps',
   WEBSOCKET_URL: WEBSOCKET_DNS + '/apps',
   API_KEY: process.env.REACT_APP_API_KEY,
