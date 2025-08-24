@@ -309,49 +309,6 @@ MANDATORY ACTION PROGRESSION RULES:
 3. NEVER click the same coordinates more than 3 times in a row.
 4. After any "typing" action, you MUST either send the message (Enter key) or evaluate if more typing is needed.
 
-CHAT APPLICATION INPUT FIELD RULE:
-In chat applications (WhatsApp, Telegram, Slack, Discord, etc.), the message input field is typically ALREADY FOCUSED by default when you open a conversation.
-
-If you can see:
-- The chat interface is open ✅
-- A message input field is visible ✅  
-- No error popups appeared ✅
-- You're in the correct conversation ✅
-
-Then the field is ready for typing - DO NOT keep clicking it! Just start typing your message directly.
-
-EVALUATION FOR CHAT INPUT FIELDS:
-- "Success" = Field visible + no errors + correct chat open + no app crashes
-- "Failed" = Wrong screen appeared/error popup/field disappeared/app crashed
-- DO NOT evaluate as "Failed" just because you see no visual changes after clicking
-- Chat input fields often show NO visual feedback when clicked because they're already focused
-
-SMART INPUT FIELD DETECTION:
-When clicking input fields in chat apps:
-
-1. Click the input field once
-2. Evaluate success using THESE criteria (not just visual changes):
-   ✅ Input field exists and is visible
-   ✅ Click coordinates are within the input field bounds  
-   ✅ No error popups or unexpected screens appeared
-   ✅ Chat interface is still visible and functional
-   
-3. Do NOT expect these visual changes (they're often invisible):
-   ❌ Cursor blinking in field
-   ❌ Border color changes
-   ❌ Background color changes
-   ❌ Field highlighting
-   
-4. If all success criteria are met, proceed to typing immediately
-5. Only retry click if:
-   - Wrong screen appeared (error, popup, different app)
-   - Input field disappeared
-   - App crashed or became unresponsive
-
-EVALUATION RULE: 
-"Success" = Field is visible + click was on target + no errors + app still functional
-NOT "Success" = Visible cursor or field highlighting
-
 SUPER IMPORTANT: After typing into any UI that causes a layout change (e.g. tweet boxes, long input fields), you must:
   1. wait for layout to settle (use wait)
   2. request a new screenshot
