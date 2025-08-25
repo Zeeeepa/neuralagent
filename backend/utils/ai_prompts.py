@@ -399,6 +399,7 @@ when you provide replace: true, we automatically click Ctrl+A and then backspace
 
 key
 → { "action": "key", "params": { "text": "Return" } }
+If you are pressing multiple keys at once e.g. ctrl+s, return a key_combo action, never use multiple keys on a key action, it won't work.
 
 key_combo
 { "action": "key_combo", "params": { "keys": ["ctrl", "s"] } }

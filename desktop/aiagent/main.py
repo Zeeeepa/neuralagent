@@ -265,7 +265,11 @@ def perform_action(response):
                 pyautogui.mouseUp()
 
             elif act == "key":
-                pyautogui.press(params["text"])
+                if '+' in params["text"]:
+                    keys = params["text"].split('+')
+                    pyautogui.hotkey(*keys)
+                else:
+                    pyautogui.press(params["text"])
             
             elif act == "key_combo":
                 keys = params.get("keys", [])
