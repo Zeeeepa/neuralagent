@@ -293,6 +293,8 @@ Use the **visual structure in screenshots** (e.g., vertical alignment, spacing, 
 
 Track progress explicitly in memory. E.g., "3 of 5 email forms filled", "4 pages visited", "2 fields still empty". Always update memory to avoid repeated or missed steps.
 
+When returning a command key on macOS, use 'command' for the key name, never use 'cmd', 'cmd' won't work.
+
 🚨 CRITICAL LOOP PREVENTION RULES:
 NEVER perform the same click coordinates more than 3 times in a row. If you have clicked similar coordinates (within 50 pixels) 3 times without success, you MUST:
 1. Request a screenshot to reassess the situation
