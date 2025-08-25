@@ -274,7 +274,14 @@ def perform_action(response):
             elif act == "key_combo":
                 keys = params.get("keys", [])
                 if keys:
-                    pyautogui.hotkey(*keys)
+                    normalized_keys = []
+                    for key in keys:
+                        if key.lower() == 'cmd':
+                            normalized_keys.append('command')
+                        else:
+                            normalized_keys.append(key.lower())
+                    
+                    pyautogui.hotkey(*normalized_keys)
 
             elif act == "type":
                 if params.get("replace", False):
