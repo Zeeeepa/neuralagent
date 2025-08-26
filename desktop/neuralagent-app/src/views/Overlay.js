@@ -777,12 +777,25 @@ export default function Overlay() {
           </StatusHeader>
 
           <AgentActivityContainer>
+
+            {currentThinking && thinkingMode && (
+              <ThinkingDisplay isDarkMode={isDarkMode}>
+                <strong>Agent Thinking:</strong><br />
+                <StreamingText 
+                  text={currentThinking} 
+                  isStreaming={isThinkingStreaming}
+                  speed={15}
+                  onComplete={() => setIsThinkingStreaming(false)}
+                />
+              </ThinkingDisplay>
+            )}
+            
             {taskProgress && (
               <TaskProgressDisplay isDarkMode={isDarkMode}>
                 <StreamingText 
                   text={taskProgress} 
                   isStreaming={isProgressStreaming}
-                  speed={25}
+                  speed={15}
                   onComplete={() => setIsProgressStreaming(false)}
                 />
               </TaskProgressDisplay>
@@ -793,22 +806,10 @@ export default function Overlay() {
                 <StreamingText 
                   text={currentAction} 
                   isStreaming={isActionStreaming}
-                  speed={35}
+                  speed={15}
                   onComplete={() => setIsActionStreaming(false)}
                 />
               </CurrentActionDisplay>
-            )}
-
-            {currentThinking && thinkingMode && (
-              <ThinkingDisplay isDarkMode={isDarkMode}>
-                <strong>💭 Agent Thinking:</strong><br />
-                <StreamingText 
-                  text={currentThinking} 
-                  isStreaming={isThinkingStreaming}
-                  speed={45}
-                  onComplete={() => setIsThinkingStreaming(false)}
-                />
-              </ThinkingDisplay>
             )}
 
             {actionLog.length > 0 && (
